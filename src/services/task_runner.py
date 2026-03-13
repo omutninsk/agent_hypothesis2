@@ -8,6 +8,7 @@ from aiogram import Bot
 
 from src.agent.callbacks import TelegramProgressCallback
 from src.agent.core import build_agent
+from src.bot.formatters import escape
 from src.config import Settings
 from src.db.models import Task, TaskStatus
 from src.db.repositories.skills import SkillsRepository
@@ -63,29 +64,18 @@ class TaskRunner:
             )
 
             result = await agent.ainvoke(
-                {"messages": [("user", task.description)]},
-                config={
-                    "callbacks": [callback],
-                    "recursion_limit": self.settings.agent_max_iterations * 2,
-                },
+                {"input": task.description},
+                config={"callbacks": [callback]},
             )
 
-            # Extract final answer
-            messages = result.get("messages", [])
-            final = messages[-1].content if messages else "No output."
-            if isinstance(final, list):
-                # Some models return list of content blocks
-                final = "\n".join(
-                    b.get("text", str(b)) if isinstance(b, dict) else str(b)
-                    for b in final
-                )
+            final = result.get("output", "No output.")
 
             await self.task_repo.update_status(
                 task.id, TaskStatus.COMPLETED, result=final
             )
             await bot.send_message(
                 task.chat_id,
-                f"Task completed!\n\n{final[:3500]}",
+                f"Task completed!\n\n{escape(final[:3500])}",
             )
 
         except asyncio.CancelledError:
@@ -99,7 +89,7 @@ class TaskRunner:
             )
             try:
                 await bot.send_message(
-                    task.chat_id, f"Task failed: {str(e)[:1000]}"
+                    task.chat_id, f"Task failed: {escape(str(e)[:1000])}"
                 )
             except Exception:
                 pass

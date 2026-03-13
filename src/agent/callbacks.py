@@ -7,6 +7,8 @@ from uuid import UUID
 from aiogram import Bot
 from langchain_core.callbacks import AsyncCallbackHandler
 
+from src.bot.formatters import escape
+
 logger = logging.getLogger(__name__)
 
 _STATUS_MAP = {
@@ -43,7 +45,7 @@ class TelegramProgressCallback(AsyncCallbackHandler):
         try:
             await self.bot.send_message(
                 self.chat_id,
-                f"[Step {self._step}] Error: {str(error)[:500]}",
+                f"[Step {self._step}] Error: {escape(str(error)[:500])}",
             )
         except Exception:
             pass
