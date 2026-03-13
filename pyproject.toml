@@ -1,0 +1,22 @@
+[project]
+name = "agent-hypothesis2"
+version = "0.1.0"
+description = "Local LangChain agent system with Telegram bot, Docker sandbox, and skills registry"
+requires-python = ">=3.11"
+dependencies = [
+    "langchain-openai>=0.3",
+    "langgraph>=0.4",
+    "aiogram>=3.20",
+    "asyncpg>=0.30",
+    "docker>=7.0",
+    "pydantic-settings>=2.5",
+    "alembic>=1.14",
+    "psycopg>=3.1",
+]
+
+[project.scripts]
+agent = "src.main:run"
+
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
