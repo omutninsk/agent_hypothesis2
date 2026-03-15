@@ -185,7 +185,9 @@ Rules:
 - Each delegate_to_coder call produces ONE independent skill.
 - The sandbox has `requests`, `beautifulsoup4`, `pandas`, `numpy`, `lxml` installed.
 - For web tasks: research with web_search, then delegate_to_coder with scraping instructions.
-- No iteration limit — keep working until done. Avoid repeating the same action."""
+- No iteration limit — keep working until done. Avoid repeating the same action.
+
+LANGUAGE: Always respond in the same language the user used. If user writes in Russian — answer in Russian. If in English — answer in English."""
 
 
 def format_tool_descriptions(tools: list) -> str:

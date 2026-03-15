@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 _REFLECTION_PROMPT = """Task: {task}
 Result: {result}
-
+{validation_section}
 Extract 0-3 reusable insights from this task. An insight is something useful for future tasks: a working API, a scraping technique, a user preference, a gotcha to avoid.
 
 Respond ONLY with a JSON array. Each item: {{"key": "short_topic", "content": "what you learned"}}
@@ -42,6 +42,7 @@ async def reflect_and_save(
     user_id: int,
     task_description: str,
     task_result: str,
+    validation_issues: list[dict] | None = None,
 ) -> list[dict]:
     """Run a single LLM call to extract insights and save them.
 
@@ -49,12 +50,27 @@ async def reflect_and_save(
     Never raises — all errors are caught and logged.
     """
     try:
+        validation_section = ""
+        if validation_issues:
+            lines = []
+            for issue in validation_issues:
+                verdict = issue.get("verdict", "unknown").upper()
+                claim = issue.get("claim", "")
+                correction = issue.get("correction") or "no correction available"
+                lines.append(f"- Claim \"{claim}\" → {verdict}. Correct: {correction}.")
+            validation_section = (
+                "\nValidation found factual errors in the answer:\n"
+                + "\n".join(lines)
+                + "\nInclude insights about these errors so you avoid them next time.\n"
+            )
+
         prompt = _REFLECTION_PROMPT.format(
             task=task_description[:1000],
             result=task_result[:1500],
+            validation_section=validation_section,
         )
 
-        llm = build_llm(settings)
+        llm = build_llm(settings, react_mode=False)
         response = await llm.ainvoke(prompt)
         raw = response.content if isinstance(response.content, str) else str(response.content)
         logger.info("Reflection response: %.500s", raw)

@@ -6,7 +6,7 @@ from aiogram import Router
 from aiogram.filters import Command
 from aiogram.types import Message
 
-from src.bot.formatters import escape
+from src.bot.formatters import escape, split_message
 from src.db.repositories.memory import MemoryRepository
 
 router = Router()
@@ -48,7 +48,5 @@ async def handle_memory(
     ]
     text = "\n\n".join(s for s in sections if s)
 
-    if len(text) > 4000:
-        text = text[:4000] + "\n\n... (truncated)"
-
-    await message.reply(text)
+    for chunk in split_message(text):
+        await message.reply(chunk)

@@ -107,14 +107,14 @@ def _extract_json(raw: str) -> str:
     return raw  # fallback: return as-is
 
 
-def build_llm(settings: Settings) -> ChatOpenAI:
+def build_llm(settings: Settings, react_mode: bool = True) -> ChatOpenAI:
     return ChatOpenAI(
         base_url=settings.llm_base_url,
         api_key=settings.llm_api_key.get_secret_value(),
         model=settings.llm_model,
         temperature=settings.llm_temperature,
         max_tokens=settings.llm_max_tokens,
-        stop=["\nObservation:", "\nObservation "],
+        stop=["\nObservation:", "\nObservation "] if react_mode else None,
     )
 
 

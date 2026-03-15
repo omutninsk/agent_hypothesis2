@@ -8,7 +8,7 @@ from aiogram import Bot
 
 from src.agent.callbacks import TelegramProgressCallback
 from src.agent.supervisor import build_supervisor_agent
-from src.bot.formatters import escape
+from src.bot.formatters import escape, split_message
 from src.config import Settings
 from src.db.models import Task, TaskStatus
 from src.db.repositories.knowledge import KnowledgeRepository
@@ -18,6 +18,8 @@ from src.db.repositories.conversations import ConversationsRepository
 from src.db.repositories.tasks import TasksRepository
 from src.sandbox.manager import SandboxManager
 from src.services.reflection import reflect_and_save
+from src.services.validation import validate_response
+
 logger = logging.getLogger(__name__)
 
 
@@ -103,24 +105,42 @@ class TaskRunner:
                 task.id, TaskStatus.COMPLETED, result=final
             )
 
+            issues = await validate_response(
+                settings=self.settings,
+                answer=final,
+            )
+
             insights = await reflect_and_save(
                 settings=self.settings,
                 memory_repo=self.memory_repo,
                 user_id=task.user_id,
                 task_description=task.description,
                 task_result=final,
+                validation_issues=issues,
             )
 
             await self.memory_repo.delete_by_prefix("_ctx:", task.user_id)
 
-            msg = f"Task completed!\n\n{escape(final[:3500])}"
+            msg = f"Task completed!\n\n{escape(final)}"
+            if issues:
+                warnings = "\n".join(
+                    f"  \u26a0\ufe0f {escape(i['claim'])} \u2192 {escape(i['correction'])}"
+                    for i in issues
+                    if i.get("correction")
+                )
+                if warnings:
+                    msg += f"\n\n<b>Validation warnings:</b>\n{warnings}"
             if insights:
                 lines = "\n".join(
                     f"  \u2022 {escape(i['key'])}: {escape(i['content'])}"
                     for i in insights
                 )
                 msg += f"\n\n<b>Insights saved:</b>\n{lines}"
-            await bot.send_message(task.chat_id, msg)
+            try:
+                for chunk in split_message(msg):
+                    await bot.send_message(task.chat_id, chunk)
+            except Exception:
+                logger.warning("Failed to send result to chat %s", task.chat_id)
 
         except asyncio.CancelledError:
             await self.task_repo.update_status(task.id, TaskStatus.CANCELLED)

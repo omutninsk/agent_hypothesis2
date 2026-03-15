@@ -7,7 +7,7 @@ from aiogram import Bot, Router
 from aiogram.filters import Command
 from aiogram.types import Message
 
-from src.bot.formatters import code_block, escape, truncate
+from src.bot.formatters import escape, split_message, truncate
 from src.db.repositories.skills import SkillsRepository
 from src.services.skill_executor import SkillExecutor
 
@@ -79,4 +79,7 @@ async def handle_run(
         output_parts.append("TIMED OUT")
     output_parts.append(f"Exit code: {result.exit_code}")
 
-    await message.reply(code_block("\n".join(output_parts)))
+    raw = "\n".join(output_parts)
+    # Reserve room for <pre></pre> tags (11 chars)
+    for chunk in split_message(escape(raw), limit=4096 - 11):
+        await message.reply(f"<pre>{chunk}</pre>")
