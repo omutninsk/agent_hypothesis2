@@ -47,6 +47,21 @@ class TaskRunner:
             return True
         return False
 
+    async def _build_context_prefix(self, user_id: int) -> str:
+        parts: list[str] = []
+
+        insights = await self.memory_repo.recall_by_prefix("_insight:", user_id)
+        if insights:
+            lines = [f"- {e.key.removeprefix('_insight:')}: {e.content}" for e in insights[:20]]
+            parts.append("YOUR LEARNED INSIGHTS:\n" + "\n".join(lines))
+
+        ctx = await self.memory_repo.recall_by_prefix("_ctx:", user_id)
+        if ctx:
+            lines = [f"- {e.key.removeprefix('_ctx:')}: {e.content}" for e in ctx]
+            parts.append("PREVIOUS TASK CONTEXT:\n" + "\n".join(lines))
+
+        return "\n\n".join(parts)
+
     async def run(self, task: Task, bot: Bot) -> None:
         try:
             await self.task_repo.update_status(task.id, TaskStatus.RUNNING)
@@ -64,8 +79,13 @@ class TaskRunner:
                 bot=bot, chat_id=task.chat_id, task_id=task.id
             )
 
+            context_prefix = await self._build_context_prefix(task.user_id)
+            agent_input = task.description
+            if context_prefix:
+                agent_input = f"{context_prefix}\n\n---\nUSER REQUEST: {task.description}"
+
             result = await agent.ainvoke(
-                {"input": task.description},
+                {"input": agent_input},
                 config={"callbacks": [callback]},
             )
 
@@ -74,6 +94,7 @@ class TaskRunner:
             await self.task_repo.update_status(
                 task.id, TaskStatus.COMPLETED, result=final
             )
+            await self.memory_repo.delete_by_prefix("_ctx:", task.user_id)
             await bot.send_message(
                 task.chat_id,
                 f"Task completed!\n\n{escape(final[:3500])}",

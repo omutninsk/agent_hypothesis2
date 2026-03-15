@@ -13,6 +13,17 @@ router = Router()
 logger = logging.getLogger(__name__)
 
 
+def _format_entries(entries: list, header: str) -> str:
+    if not entries:
+        return ""
+    lines = [f"<b>— {header} —</b>"]
+    for e in entries:
+        date = e.updated_at.strftime("%Y-%m-%d %H:%M")
+        display_key = e.key.split(":", 1)[-1] if ":" in e.key else e.key
+        lines.append(f"<b>{escape(display_key)}</b> — {escape(e.content[:200])}\n<i>{date}</i>")
+    return "\n\n".join(lines)
+
+
 @router.message(Command("memory"))
 async def handle_memory(
     message: Message,
@@ -26,13 +37,17 @@ async def handle_memory(
         await message.reply("No memories stored yet.")
         return
 
-    lines = []
-    for e in entries:
-        date = e.updated_at.strftime("%Y-%m-%d %H:%M")
-        lines.append(f"<b>{escape(e.key)}</b> — {escape(e.content[:200])}\n<i>{date}</i>")
+    ctx_entries = [e for e in entries if e.key.startswith("_ctx:")]
+    insight_entries = [e for e in entries if e.key.startswith("_insight:")]
+    user_entries = [e for e in entries if not e.key.startswith("_ctx:") and not e.key.startswith("_insight:")]
 
-    text = "\n\n".join(lines)
-    # Telegram message limit is 4096 chars
+    sections = [
+        _format_entries(ctx_entries, "Active Task Context"),
+        _format_entries(insight_entries, "Agent Insights"),
+        _format_entries(user_entries, "User Memories"),
+    ]
+    text = "\n\n".join(s for s in sections if s)
+
     if len(text) > 4000:
         text = text[:4000] + "\n\n... (truncated)"
 

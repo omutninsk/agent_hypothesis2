@@ -27,6 +27,7 @@ _STATUS_MAP = {
     "delete_skill": "Deleting skill",
     "save_knowledge": "Saving knowledge",
     "search_knowledge": "Searching knowledge",
+    "update_context": "Updating context",
 }
 
 

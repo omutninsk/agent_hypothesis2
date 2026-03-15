@@ -11,6 +11,7 @@ from src.agent.tools.web_search import make_web_search_tool
 from src.agent.tools.delete_skill import make_delete_skill_tool
 from src.agent.tools.save_knowledge import make_save_knowledge_tool
 from src.agent.tools.search_knowledge import make_search_knowledge_tool
+from src.agent.tools.update_context import make_update_context_tool
 from src.config import Settings
 from src.db.repositories.knowledge import KnowledgeRepository
 from src.db.repositories.memory import MemoryRepository
@@ -31,6 +32,7 @@ def build_supervisor_agent(
     tools = [
         make_recall_memory_tool(memory_repo, user_id),
         make_save_memory_tool(memory_repo, user_id),
+        make_update_context_tool(memory_repo, user_id),
         make_search_knowledge_tool(knowledge_repo, user_id),
         make_save_knowledge_tool(knowledge_repo, user_id),
         make_web_search_tool(),

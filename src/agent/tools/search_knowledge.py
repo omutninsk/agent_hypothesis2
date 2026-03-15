@@ -1,13 +1,28 @@
 from __future__ import annotations
 
 from langchain_core.tools import tool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from src.db.repositories.knowledge import KnowledgeRepository
 
 
 class SearchKnowledgeInput(BaseModel):
     query: str = Field(description="Search query to find relevant knowledge entries")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize(cls, values: dict) -> dict:
+        if isinstance(values, dict) and "query" not in values:
+            for alt in ("key", "search", "keyword", "text", "q", "topic"):
+                if alt in values:
+                    values["query"] = values.pop(alt)
+                    break
+            else:
+                for v in values.values():
+                    if isinstance(v, str):
+                        values["query"] = v
+                        break
+        return values
 
 
 def make_search_knowledge_tool(knowledge_repo: KnowledgeRepository, user_id: int):

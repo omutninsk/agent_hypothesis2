@@ -54,6 +54,22 @@ class MemoryRepository:
         )
         return [MemoryEntry(**dict(r)) for r in rows]
 
+    async def recall_by_prefix(self, prefix: str, user_id: int) -> list[MemoryEntry]:
+        rows = await self._pool.fetch(
+            "SELECT * FROM agent_memory WHERE created_by = $1 AND key LIKE $2 ORDER BY updated_at DESC",
+            user_id,
+            f"{prefix}%",
+        )
+        return [MemoryEntry(**dict(r)) for r in rows]
+
+    async def delete_by_prefix(self, prefix: str, user_id: int) -> int:
+        result = await self._pool.execute(
+            "DELETE FROM agent_memory WHERE created_by = $1 AND key LIKE $2",
+            user_id,
+            f"{prefix}%",
+        )
+        return int(result.split()[-1])
+
     async def delete(self, key: str, user_id: int) -> bool:
         result = await self._pool.execute(
             "DELETE FROM agent_memory WHERE key = $1 AND created_by = $2",

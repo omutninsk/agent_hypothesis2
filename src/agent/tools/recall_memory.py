@@ -1,13 +1,29 @@
 from __future__ import annotations
 
 from langchain_core.tools import tool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from src.db.repositories.memory import MemoryRepository
 
 
 class RecallMemoryInput(BaseModel):
     query: str = Field(description="Memory key or search query to find relevant memories")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize(cls, values: dict) -> dict:
+        if isinstance(values, dict) and "query" not in values:
+            for alt in ("key", "search", "keyword", "text", "q"):
+                if alt in values:
+                    values["query"] = values.pop(alt)
+                    break
+            else:
+                # take the first string value as query
+                for v in values.values():
+                    if isinstance(v, str):
+                        values["query"] = v
+                        break
+        return values
 
 
 def make_recall_memory_tool(memory_repo: MemoryRepository, user_id: int):
