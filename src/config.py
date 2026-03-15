@@ -25,10 +25,11 @@ class Settings(BaseSettings):
     docker_execution_timeout: int = 60
     docker_memory_limit: str = "512m"
     docker_cpu_quota: int = 50000
-    docker_network_disabled: bool = True
+    docker_network_disabled: bool = False
 
     # Agent
-    agent_max_iterations: int = 10
+    agent_max_iterations: int = 200
+    skills_dir: str = "/app/skills"
 
     # Logging
     log_level: str = "INFO"

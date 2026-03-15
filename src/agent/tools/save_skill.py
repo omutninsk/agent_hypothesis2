@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
@@ -30,7 +31,7 @@ class SaveSkillInput(BaseModel):
 
 
 def make_save_skill_tool(
-    skill_repo: SkillsRepository, workspace_path: str, user_id: int
+    skill_repo: SkillsRepository, workspace_path: str, user_id: int, skills_dir: str = ""
 ):
     @tool(args_schema=SaveSkillInput)
     async def save_skill(
@@ -75,6 +76,21 @@ def make_save_skill_tool(
             ),
             user_id=user_id,
         )
+        # Write skill files to disk for browsing
+        if skills_dir:
+            skill_dir = os.path.join(skills_dir, name)
+            if os.path.exists(skill_dir):
+                shutil.rmtree(skill_dir)
+            os.makedirs(skill_dir, exist_ok=True)
+            for filename, content in bundle.items():
+                safe = os.path.normpath(filename)
+                if safe.startswith("..") or safe.startswith("/"):
+                    continue
+                full = os.path.join(skill_dir, safe)
+                os.makedirs(os.path.dirname(full), exist_ok=True)
+                with open(full, "w") as f:
+                    f.write(content)
+
         return f"Skill '{name}' saved (id={skill.id}). Run with: /run {name}"
 
     return save_skill

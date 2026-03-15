@@ -13,7 +13,9 @@ RUN pip install --no-cache-dir \
     pyyaml toml \
     scipy scikit-learn \
     Pillow \
-    openpyxl xlrd
+    openpyxl xlrd \
+    duckduckgo-search \
+    lxml
 
 RUN useradd -m -s /bin/bash sandbox
 USER sandbox

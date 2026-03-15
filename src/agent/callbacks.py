@@ -23,6 +23,8 @@ _STATUS_MAP = {
     "delegate_to_coder": "Delegating to coder agent",
     "save_to_memory": "Saving to memory",
     "recall_memory": "Recalling memory",
+    "web_search": "Searching the web",
+    "delete_skill": "Deleting skill",
 }
 
 

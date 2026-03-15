@@ -39,6 +39,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp/agent_workspaces:/tmp/agent_workspaces
+      - ./skills:/app/skills
     restart: unless-stopped
 
 volumes:

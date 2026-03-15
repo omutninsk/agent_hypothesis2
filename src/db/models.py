@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from enum import Enum
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class TaskStatus(str, Enum):
@@ -46,6 +47,13 @@ class Skill(BaseModel):
     proto_schema: Optional[str] = None
     input_schema: Optional[dict] = None
     output_schema: Optional[dict] = None
+
+    @field_validator("input_schema", "output_schema", mode="before")
+    @classmethod
+    def _parse_json_str(cls, v):
+        if isinstance(v, str):
+            return json.loads(v)
+        return v
 
 
 # --- Task ---

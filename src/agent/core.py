@@ -74,11 +74,14 @@ def build_llm(settings: Settings) -> ChatOpenAI:
 class ReactAgent:
     """Simple text-based ReAct agent that doesn't require native tool calling."""
 
+    LOOP_WINDOW = 6  # how many recent actions to track
+    LOOP_THRESHOLD = 3  # same action repeated this many times = loop
+
     def __init__(
         self,
         llm: ChatOpenAI,
         tools: list,
-        max_iterations: int = 10,
+        max_iterations: int = 200,
         system_prompt: str | None = None,
     ) -> None:
         self.llm = llm
@@ -86,6 +89,17 @@ class ReactAgent:
         self.tool_list = tools
         self.max_iterations = max_iterations
         self.system_prompt = system_prompt
+
+    def _detect_loop(self, history: list[tuple[str, str]]) -> bool:
+        """Check if the agent is stuck in a loop.
+        Returns True if the same (tool, input) pair appears >= LOOP_THRESHOLD
+        times in the last LOOP_WINDOW actions."""
+        window = history[-self.LOOP_WINDOW :]
+        if len(window) < self.LOOP_THRESHOLD:
+            return False
+        from collections import Counter
+        counts = Counter(window)
+        return any(c >= self.LOOP_THRESHOLD for c in counts.values())
 
     async def ainvoke(
         self,
@@ -103,6 +117,7 @@ class ReactAgent:
 
         conversation = f"{system}\n\nTask: {task}\nThought:"
         final_answer = ""
+        action_history: list[tuple[str, str]] = []
 
         for i in range(self.max_iterations):
             logger.info("[iter %d] Calling LLM (prompt len=%d)", i, len(conversation))
@@ -118,15 +133,21 @@ class ReactAgent:
             text = response.content if isinstance(response.content, str) else str(response.content)
             logger.info("[iter %d] LLM response (%d chars): %.300s", i, len(text), text)
 
-            # Check for Final Answer
+            # Parse both Action and Final Answer
+            action_match = _ACTION_RE.search(text)
             final_match = _FINAL_RE.search(text)
-            if final_match:
+
+            # If both found, whichever comes first wins
+            if action_match and final_match:
+                if final_match.start() < action_match.start():
+                    action_match = None  # Final Answer comes first
+                else:
+                    final_match = None  # Action comes first, process it
+
+            if final_match and not action_match:
                 final_answer = final_match.group(1).strip()
                 logger.info("[iter %d] Final answer: %.200s", i, final_answer)
                 break
-
-            # Parse Action
-            action_match = _ACTION_RE.search(text)
             if not action_match:
                 logger.warning("[iter %d] No Action found, retrying", i)
                 conversation += f" {text}\nObservation: Please use the exact format: Action: <tool_name>\\nAction Input: <json>\\nThought:"
@@ -137,6 +158,13 @@ class ReactAgent:
             # Clean raw_input: take only the first JSON object or first line
             raw_input = _extract_json(raw_input)
             logger.info("[iter %d] Action: %s | Input: %.300s", i, tool_name, raw_input)
+
+            # Loop detection
+            action_history.append((tool_name, raw_input))
+            if self._detect_loop(action_history):
+                logger.warning("[iter %d] Loop detected! Same action repeated %d times. Stopping.", i, self.LOOP_THRESHOLD)
+                conversation += f" {text}\nObservation: LOOP DETECTED — you have repeated the same action {self.LOOP_THRESHOLD} times. Stop and provide a Final Answer with what you have so far.\nThought:"
+                continue
 
             # Notify callbacks
             for cb in callbacks:
@@ -197,7 +225,7 @@ def build_coder_agent(
         make_write_file_tool(workspace_path),
         make_read_file_tool(workspace_path),
         make_execute_code_tool(sandbox, workspace_path),
-        make_save_skill_tool(skill_repo, workspace_path, user_id),
+        make_save_skill_tool(skill_repo, workspace_path, user_id, settings.skills_dir),
         make_list_skills_tool(skill_repo),
         make_run_skill_tool(skill_repo, sandbox),
     ]

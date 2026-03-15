@@ -16,6 +16,6 @@ COPY entrypoint.sh ./
 # Install project + dependencies
 RUN pip install --no-cache-dir . && \
     chmod +x entrypoint.sh && \
-    mkdir -p /tmp/agent_workspaces
+    mkdir -p /tmp/agent_workspaces /app/skills
 
 ENTRYPOINT ["./entrypoint.sh"]
