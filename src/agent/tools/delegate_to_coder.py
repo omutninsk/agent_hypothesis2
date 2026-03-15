@@ -29,6 +29,9 @@ def make_delegate_to_coder_tool(
         """Delegate a coding task to the Coder agent. It will write code, test it, and save it as a skill."""
         tmpdir = tempfile.mkdtemp(prefix="coder_ws_")
         try:
+            # Snapshot existing skill names before coder runs
+            existing = {s.name for s in await skill_repo.list_all()}
+
             coder = build_coder_agent(
                 settings=settings,
                 sandbox=sandbox,
@@ -37,7 +40,18 @@ def make_delegate_to_coder_tool(
                 user_id=user_id,
             )
             result = await coder.ainvoke({"input": task_description})
-            return result.get("output", "Coder agent produced no output.")
+            coder_output = result.get("output", "Coder agent produced no output.")
+
+            # Detect newly saved skills
+            current = {s.name for s in await skill_repo.list_all()}
+            new_skills = current - existing
+            if new_skills:
+                names = ", ".join(sorted(new_skills))
+                coder_output += f"\n\nSKILL_SAVED: {names}"
+            else:
+                coder_output += "\n\nWARNING: No skill was saved by the coder."
+
+            return coder_output
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
 

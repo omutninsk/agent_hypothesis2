@@ -45,6 +45,6 @@ def build_supervisor_agent(
     return ReactAgent(
         llm=llm,
         tools=tools,
-        max_iterations=15,
+        max_iterations=200,
         system_prompt=SUPERVISOR_SYSTEM,
     )

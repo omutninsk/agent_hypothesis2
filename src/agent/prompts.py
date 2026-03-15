@@ -59,7 +59,12 @@ Rules:
 - When code works and produces correct output, save as skill with save_skill.
 - The sandbox has `requests`, `beautifulsoup4`, `pandas`, `numpy`, `lxml` installed.
 - If a test fails, read the error, fix the code, and re-test. Do not give up.
-- No iteration limit — keep working until done. Avoid repeating the same action."""
+- No iteration limit — keep working until done. Avoid repeating the same action.
+
+MANDATORY — ALWAYS SAVE:
+- You MUST call save_skill before giving Final Answer. A task is NOT complete until save_skill succeeds.
+- If you skip save_skill, the skill will be lost and the user's request will fail.
+- After save_skill succeeds, include the skill name in your Final Answer: "Saved skill: <name>"."""
 
 
 SUPERVISOR_SYSTEM = """You are an autonomous assistant. You chat, plan, remember, and write code.

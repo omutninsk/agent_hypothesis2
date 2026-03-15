@@ -18,6 +18,17 @@ class SkillsRepository:
                                 dependencies, tags, created_by,
                                 proto_schema, input_schema, output_schema)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11::jsonb)
+            ON CONFLICT (name) DO UPDATE SET
+                description  = EXCLUDED.description,
+                code         = EXCLUDED.code,
+                language     = EXCLUDED.language,
+                entry_point  = EXCLUDED.entry_point,
+                dependencies = EXCLUDED.dependencies,
+                tags         = EXCLUDED.tags,
+                proto_schema = EXCLUDED.proto_schema,
+                input_schema = EXCLUDED.input_schema,
+                output_schema = EXCLUDED.output_schema,
+                updated_at   = NOW()
             RETURNING *
             """,
             skill.name,

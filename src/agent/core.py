@@ -29,6 +29,52 @@ _ACTION_RE = re.compile(
 _FINAL_RE = re.compile(r"Final\s+Answer\s*:\s*(.+)", re.DOTALL)
 
 
+def _normalize_tool_args(tool, args: dict) -> dict:
+    """Fix common small-LLM mistakes: wrong field names, double-serialised JSON."""
+    schema_cls = getattr(tool, "args_schema", None)
+    if schema_cls is None:
+        return args
+
+    schema = schema_cls.model_json_schema()
+    required = set(schema.get("required", []))
+    props = set(schema.get("properties", {}).keys())
+
+    # Already valid — fast path
+    if required.issubset(args.keys()):
+        return args
+
+    # Pattern 1: a value is a JSON string containing the correct fields
+    # e.g. {"filename": '{"filename":"main.py","content":"..."}'}
+    for val in args.values():
+        if isinstance(val, str) and val.strip().startswith("{"):
+            try:
+                parsed = json.loads(val)
+                if isinstance(parsed, dict) and required.issubset(parsed.keys()):
+                    return parsed
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+    # Pattern 2: wrong field names — map extra keys to missing required fields
+    missing = list(required - set(args.keys()))
+    extra = [k for k in args if k not in props]
+    if missing and extra:
+        remapped = dict(args)
+        for m, e in zip(missing, extra):
+            remapped[m] = remapped.pop(e)
+        if required.issubset(remapped.keys()):
+            return remapped
+
+    # Pattern 3: single required field missing — take first string value
+    if len(missing) == 1:
+        for v in args.values():
+            if isinstance(v, str):
+                fixed = dict(args)
+                fixed[missing[0]] = v
+                return fixed
+
+    return args
+
+
 def _extract_json(raw: str) -> str:
     """Extract the first JSON object from raw string.
     Models often continue writing after the JSON — this trims the excess."""
@@ -182,6 +228,7 @@ class ReactAgent:
                 try:
                     args = json.loads(raw_input)
                     if isinstance(args, dict):
+                        args = _normalize_tool_args(tool, args)
                         observation = await tool.ainvoke(args)
                     else:
                         observation = await tool.ainvoke(str(args))
