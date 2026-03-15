@@ -100,6 +100,17 @@ class MemoryEntry(BaseModel):
     updated_at: datetime
 
 
+# --- Knowledge ---
+
+class KnowledgeEntry(BaseModel):
+    id: int
+    topic: str
+    content: str
+    source: Optional[str] = None
+    created_by: int
+    created_at: datetime
+
+
 # --- Execution ---
 
 class ExecutionResult(BaseModel):

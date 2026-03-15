@@ -25,6 +25,8 @@ _STATUS_MAP = {
     "recall_memory": "Recalling memory",
     "web_search": "Searching the web",
     "delete_skill": "Deleting skill",
+    "save_knowledge": "Saving knowledge",
+    "search_knowledge": "Searching knowledge",
 }
 
 
