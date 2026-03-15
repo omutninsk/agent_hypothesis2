@@ -15,5 +15,31 @@ services:
       timeout: 5s
       retries: 5
 
+  sandbox:
+    build:
+      context: .
+      dockerfile: Dockerfile.sandbox
+    image: agent-sandbox:latest
+    command: ["true"]
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      sandbox:
+        condition: service_completed_successfully
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DSN: postgresql://agent:agent@postgres:5432/agent_db
+      TMPDIR: /tmp/agent_workspaces
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/agent_workspaces:/tmp/agent_workspaces
+    restart: unless-stopped
+
 volumes:
   pgdata:

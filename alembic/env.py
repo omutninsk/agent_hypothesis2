@@ -1,9 +1,17 @@
+import os
 from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 config = context.config
+
+# Override sqlalchemy.url from POSTGRES_DSN env var (Docker support)
+dsn = os.getenv("POSTGRES_DSN")
+if dsn:
+    sa_url = dsn.replace("postgresql://", "postgresql+psycopg://", 1)
+    config.set_main_option("sqlalchemy.url", sa_url)
+
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
