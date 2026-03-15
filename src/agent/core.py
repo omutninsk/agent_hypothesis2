@@ -129,12 +129,14 @@ class ReactAgent:
         tools: list,
         max_iterations: int = 200,
         system_prompt: str | None = None,
+        required_tool: str | None = None,
     ) -> None:
         self.llm = llm
         self.tools = {t.name: t for t in tools}
         self.tool_list = tools
         self.max_iterations = max_iterations
         self.system_prompt = system_prompt
+        self.required_tool = required_tool
 
     def _detect_loop(self, history: list[tuple[str, str]]) -> bool:
         """Check if the agent is stuck in a loop.
@@ -164,6 +166,8 @@ class ReactAgent:
         conversation = f"{system}\n\nTask: {task}\nThought:"
         final_answer = ""
         action_history: list[tuple[str, str]] = []
+        tools_called: set[str] = set()
+        required_tool_nags = 0
 
         for i in range(self.max_iterations):
             logger.info("[iter %d] Calling LLM (prompt len=%d)", i, len(conversation))
@@ -191,6 +195,23 @@ class ReactAgent:
                     final_match = None  # Action comes first, process it
 
             if final_match and not action_match:
+                # Guard: if required_tool not yet called, reject Final Answer
+                if (
+                    self.required_tool
+                    and self.required_tool not in tools_called
+                    and required_tool_nags < 3
+                ):
+                    required_tool_nags += 1
+                    logger.warning(
+                        "[iter %d] Premature Final Answer — %s not called yet (nag %d/3)",
+                        i, self.required_tool, required_tool_nags,
+                    )
+                    conversation += (
+                        f" {text}\nObservation: STOP. You have NOT called "
+                        f"{self.required_tool} yet. The skill is NOT saved. "
+                        f"You MUST call {self.required_tool} before Final Answer.\nThought:"
+                    )
+                    continue
                 final_answer = final_match.group(1).strip()
                 logger.info("[iter %d] Final answer: %.200s", i, final_answer)
                 break
@@ -244,6 +265,7 @@ class ReactAgent:
                             pass
 
             obs_str = str(observation)
+            tools_called.add(tool_name)
             logger.info("[iter %d] Observation (%d chars): %.200s", i, len(obs_str), obs_str)
 
             # Truncate long observations
@@ -282,4 +304,5 @@ def build_coder_agent(
         tools=tools,
         max_iterations=settings.agent_max_iterations,
         system_prompt=CODER_SYSTEM,
+        required_tool="save_skill",
     )

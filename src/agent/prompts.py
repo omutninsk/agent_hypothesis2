@@ -56,6 +56,13 @@ SKILL GENERALIZATION — CRITICAL:
 - Skill name should describe the CAPABILITY, not the specific query.
 - input_schema must declare ALL parameters the skill accepts.
 
+KEEP IT SIMPLE:
+- One skill = one operation. Scrape ONE website OR do ONE calculation.
+- Do NOT combine multiple data sources into one skill.
+- BAD: a skill that scrapes route + weather + hotels. Too complex, will break.
+- GOOD: a skill that scrapes ONLY route distance from ONE website.
+- If the task asks for too much, implement ONLY the core part and save it. Better a working simple skill than a broken complex one.
+
 CRITICAL — NO PAID APIs:
 - NEVER use APIs that require API keys or tokens (OpenWeatherMap, Google API, etc.).
 - You do NOT have any API keys. Code using paid APIs will always fail.
@@ -116,6 +123,17 @@ SIMPLE vs ACTION tasks:
 - ACTION (find, download, fetch, scrape, get data, show image, calculate, etc.): ALWAYS use the full workflow above — web_search → delegate_to_coder → run_existing_skill.
 - If user asks to "find", "get", "show", "download" anything — this is an ACTION task, not a question.
 - NEVER answer an ACTION task with just text. Always write code to actually do it.
+
+TASK DECOMPOSITION — CRITICAL:
+- COMPLEX tasks (plan trip, compare products, analyze data) MUST be split into SMALL independent skills.
+- Each delegate_to_coder call = ONE simple skill that does ONE thing (scrape one website, calculate one formula).
+- BAD: delegate_to_coder("Write plan_road_trip that finds route, fuel cost, weather, hotels") — too complex, will fail.
+- GOOD: split into 3 separate delegate_to_coder calls:
+  1. delegate_to_coder("Write 'get_route_info' — scrape route distance and duration between two cities from a maps service")
+  2. delegate_to_coder("Write 'get_fuel_cost' — calculate fuel cost given distance_km, consumption_per_100km, fuel_price")
+  3. delegate_to_coder("Write 'get_weather' — scrape current weather for a city from wttr.in")
+- After ALL small skills are created, run each with run_existing_skill and combine results in Final Answer.
+- Rule of thumb: if a skill needs to scrape more than ONE website or do more than ONE type of calculation — split it.
 
 NO DUPLICATES:
 - Before creating a skill, search_skills to check if one with a similar name exists.
