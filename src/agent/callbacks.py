@@ -21,6 +21,8 @@ _STATUS_MAP = {
     "search_skills": "Searching skills",
     "run_existing_skill": "Running existing skill",
     "delegate_to_coder": "Delegating to coder agent",
+    "save_to_memory": "Saving to memory",
+    "recall_memory": "Recalling memory",
 }
 
 

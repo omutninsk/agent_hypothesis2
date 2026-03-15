@@ -11,6 +11,7 @@ from src.agent.supervisor import build_supervisor_agent
 from src.bot.formatters import escape
 from src.config import Settings
 from src.db.models import Task, TaskStatus
+from src.db.repositories.memory import MemoryRepository
 from src.db.repositories.skills import SkillsRepository
 from src.db.repositories.tasks import TasksRepository
 from src.sandbox.manager import SandboxManager
@@ -24,11 +25,13 @@ class TaskRunner:
         sandbox_manager: SandboxManager,
         task_repo: TasksRepository,
         skill_repo: SkillsRepository,
+        memory_repo: MemoryRepository,
     ) -> None:
         self.settings = settings
         self.sandbox = sandbox_manager
         self.task_repo = task_repo
         self.skill_repo = skill_repo
+        self.memory_repo = memory_repo
         self._active: dict[UUID, asyncio.Task] = {}
 
     def register(self, task_id: UUID, asyncio_task: asyncio.Task) -> None:
@@ -49,6 +52,7 @@ class TaskRunner:
                 settings=self.settings,
                 sandbox=self.sandbox,
                 skill_repo=self.skill_repo,
+                memory_repo=self.memory_repo,
                 user_id=task.user_id,
             )
 

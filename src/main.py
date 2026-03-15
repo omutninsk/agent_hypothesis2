@@ -4,6 +4,7 @@ import logging
 from src.config import Settings
 from src.utils.logging import setup_logging
 from src.db.connection import DatabasePool
+from src.db.repositories.memory import MemoryRepository
 from src.db.repositories.skills import SkillsRepository
 from src.db.repositories.tasks import TasksRepository
 from src.sandbox.manager import SandboxManager
@@ -26,6 +27,7 @@ async def main() -> None:
 
     skill_repo = SkillsRepository(db.pool)
     task_repo = TasksRepository(db.pool)
+    memory_repo = MemoryRepository(db.pool)
 
     # Sandbox
     sandbox = SandboxManager(settings)
@@ -36,6 +38,7 @@ async def main() -> None:
         sandbox_manager=sandbox,
         task_repo=task_repo,
         skill_repo=skill_repo,
+        memory_repo=memory_repo,
     )
     skill_executor = SkillExecutor(
         sandbox_manager=sandbox,
@@ -50,6 +53,7 @@ async def main() -> None:
     dp["skill_executor"] = skill_executor
     dp["skill_repo"] = skill_repo
     dp["task_repo"] = task_repo
+    dp["memory_repo"] = memory_repo
     dp["settings"] = settings
 
     logger.info("Starting Telegram bot polling...")

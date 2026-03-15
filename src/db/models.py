@@ -81,6 +81,17 @@ class ConversationMessage(BaseModel):
     tool_call_id: Optional[str] = None
 
 
+# --- Memory ---
+
+class MemoryEntry(BaseModel):
+    id: int
+    key: str
+    content: str
+    created_by: int
+    created_at: datetime
+    updated_at: datetime
+
+
 # --- Execution ---
 
 class ExecutionResult(BaseModel):

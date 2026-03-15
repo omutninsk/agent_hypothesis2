@@ -14,7 +14,7 @@ from src.sandbox.manager import SandboxManager
 
 class DelegateToCoderInput(BaseModel):
     task_description: str = Field(
-        description="Clear description of the coding task. Include expected input/output format."
+        description="Specific coding task. Include: what the skill does, input/output JSON format, examples. Be concrete."
     )
 
 
