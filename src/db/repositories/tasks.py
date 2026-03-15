@@ -67,6 +67,19 @@ class TasksRepository:
         )
         return [Task(**dict(r)) for r in rows]
 
+    async def recover_orphaned(self) -> int:
+        """Mark RUNNING tasks as FAILED on startup (container restart)."""
+        result = await self._pool.execute(
+            """
+            UPDATE tasks SET status = $1, result = $2, updated_at = NOW()
+            WHERE status = $3
+            """,
+            TaskStatus.FAILED.value,
+            "Interrupted: container restarted",
+            TaskStatus.RUNNING.value,
+        )
+        return int(result.split()[-1])
+
     async def get_by_id(self, task_id: UUID) -> Task | None:
         row = await self._pool.fetchrow(
             "SELECT * FROM tasks WHERE id = $1", task_id

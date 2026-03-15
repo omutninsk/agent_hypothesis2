@@ -1,4 +1,4 @@
-.PHONY: up down logs build migrate clean rebuild shell
+.PHONY: up down logs build migrate clean rebuild purge shell
 
 up:
 	docker compose up --build -d
@@ -18,7 +18,12 @@ migrate:
 clean:
 	docker compose down -v
 
-rebuild: clean up
+rebuild:
+	docker compose down
+	docker compose up --build -d
+
+purge:
+	docker compose down -v
 
 shell:
 	docker compose exec app bash

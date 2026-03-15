@@ -8,6 +8,7 @@ from src.db.repositories.knowledge import KnowledgeRepository
 from src.db.repositories.memory import MemoryRepository
 from src.db.repositories.skills import SkillsRepository
 from src.db.repositories.tasks import TasksRepository
+from src.db.repositories.conversations import ConversationsRepository
 from src.sandbox.manager import SandboxManager
 from src.services.task_runner import TaskRunner
 from src.services.skill_executor import SkillExecutor
@@ -30,6 +31,12 @@ async def main() -> None:
     task_repo = TasksRepository(db.pool)
     memory_repo = MemoryRepository(db.pool)
     knowledge_repo = KnowledgeRepository(db.pool)
+    conversation_repo = ConversationsRepository(db.pool)
+
+    # Recover tasks left in RUNNING state from previous run
+    recovered = await task_repo.recover_orphaned()
+    if recovered:
+        logger.warning("Recovered %d orphaned tasks (marked as FAILED)", recovered)
 
     # Sandbox
     sandbox = SandboxManager(settings)
@@ -42,6 +49,7 @@ async def main() -> None:
         skill_repo=skill_repo,
         memory_repo=memory_repo,
         knowledge_repo=knowledge_repo,
+        conversation_repo=conversation_repo,
     )
     skill_executor = SkillExecutor(
         sandbox_manager=sandbox,

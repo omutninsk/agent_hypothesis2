@@ -16,6 +16,7 @@ from src.agent.tools.save_skill import make_save_skill_tool
 from src.agent.tools.list_skills import make_list_skills_tool
 from src.agent.tools.run_skill import make_run_skill_tool
 from src.config import Settings
+from src.db.models import ConversationMessage
 from src.db.repositories.skills import SkillsRepository
 from src.sandbox.manager import SandboxManager
 
@@ -159,6 +160,16 @@ class ReactAgent:
         if config and "callbacks" in config:
             callbacks = config["callbacks"]
 
+        conv_repo = config.get("conversation_repo") if config else None
+        task_id = config.get("task_id") if config else None
+
+        async def _save(role: str, content: str, tool_name: str | None = None) -> None:
+            if conv_repo and task_id:
+                await conv_repo.add(ConversationMessage(
+                    task_id=task_id, role=role, content=content[:10000],
+                    tool_name=tool_name,
+                ))
+
         tool_desc = format_tool_descriptions(self.tool_list)
         prompt_template = self.system_prompt or REACT_SYSTEM
         system = prompt_template.format(tool_descriptions=tool_desc)
@@ -168,6 +179,9 @@ class ReactAgent:
         action_history: list[tuple[str, str]] = []
         tools_called: set[str] = set()
         required_tool_nags = 0
+
+        await _save("system", system)
+        await _save("user", task)
 
         for i in range(self.max_iterations):
             logger.info("[iter %d] Calling LLM (prompt len=%d)", i, len(conversation))
@@ -182,6 +196,7 @@ class ReactAgent:
 
             text = response.content if isinstance(response.content, str) else str(response.content)
             logger.info("[iter %d] LLM response (%d chars): %.300s", i, len(text), text)
+            await _save("assistant", text)
 
             # Parse both Action and Final Answer
             action_match = _ACTION_RE.search(text)
@@ -267,6 +282,7 @@ class ReactAgent:
             obs_str = str(observation)
             tools_called.add(tool_name)
             logger.info("[iter %d] Observation (%d chars): %.200s", i, len(obs_str), obs_str)
+            await _save("tool", obs_str, tool_name=tool_name)
 
             # Truncate long observations
             if len(obs_str) > 5000:

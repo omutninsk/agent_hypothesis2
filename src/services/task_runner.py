@@ -14,6 +14,7 @@ from src.db.models import Task, TaskStatus
 from src.db.repositories.knowledge import KnowledgeRepository
 from src.db.repositories.memory import MemoryRepository
 from src.db.repositories.skills import SkillsRepository
+from src.db.repositories.conversations import ConversationsRepository
 from src.db.repositories.tasks import TasksRepository
 from src.sandbox.manager import SandboxManager
 logger = logging.getLogger(__name__)
@@ -28,6 +29,7 @@ class TaskRunner:
         skill_repo: SkillsRepository,
         memory_repo: MemoryRepository,
         knowledge_repo: KnowledgeRepository,
+        conversation_repo: ConversationsRepository,
     ) -> None:
         self.settings = settings
         self.sandbox = sandbox_manager
@@ -35,6 +37,7 @@ class TaskRunner:
         self.skill_repo = skill_repo
         self.memory_repo = memory_repo
         self.knowledge_repo = knowledge_repo
+        self.conversation_repo = conversation_repo
         self._active: dict[UUID, asyncio.Task] = {}
 
     def register(self, task_id: UUID, asyncio_task: asyncio.Task) -> None:
@@ -86,7 +89,11 @@ class TaskRunner:
 
             result = await agent.ainvoke(
                 {"input": agent_input},
-                config={"callbacks": [callback]},
+                config={
+                    "callbacks": [callback],
+                    "conversation_repo": self.conversation_repo,
+                    "task_id": task.id,
+                },
             )
 
             final = result.get("output", "No output.")
