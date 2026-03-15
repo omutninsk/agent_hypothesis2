@@ -131,6 +131,8 @@ class ReactAgent:
         max_iterations: int = 200,
         system_prompt: str | None = None,
         required_tool: str | None = None,
+        required_tools_any: set[str] | None = None,
+        required_tools_any_min_length: int = 80,
     ) -> None:
         self.llm = llm
         self.tools = {t.name: t for t in tools}
@@ -138,6 +140,8 @@ class ReactAgent:
         self.max_iterations = max_iterations
         self.system_prompt = system_prompt
         self.required_tool = required_tool
+        self.required_tools_any = required_tools_any
+        self.required_tools_any_min_length = required_tools_any_min_length
 
     def _detect_loop(self, history: list[tuple[str, str]]) -> bool:
         """Check if the agent is stuck in a loop.
@@ -179,6 +183,7 @@ class ReactAgent:
         action_history: list[tuple[str, str]] = []
         tools_called: set[str] = set()
         required_tool_nags = 0
+        required_tools_any_nags = 0
 
         await _save("system", system)
         await _save("user", task)
@@ -227,7 +232,27 @@ class ReactAgent:
                         f"You MUST call {self.required_tool} before Final Answer.\nThought:"
                     )
                     continue
-                final_answer = final_match.group(1).strip()
+                candidate_answer = final_match.group(1).strip()
+                if (
+                    self.required_tools_any
+                    and not tools_called.intersection(self.required_tools_any)
+                    and len(candidate_answer) >= self.required_tools_any_min_length
+                    and required_tools_any_nags < 3
+                ):
+                    required_tools_any_nags += 1
+                    tool_names = ", ".join(sorted(self.required_tools_any))
+                    logger.warning(
+                        "[iter %d] No research tool called, nag %d/3",
+                        i, required_tools_any_nags,
+                    )
+                    conversation += (
+                        f" {text}\nObservation: STOP. You have not used any research tool. "
+                        f"Your answer may contain fabricated information. "
+                        f"You MUST call at least one of: {tool_names} before Final Answer. "
+                        f"Use web_search to verify your claims.\nThought:"
+                    )
+                    continue
+                final_answer = candidate_answer
                 logger.info("[iter %d] Final answer: %.200s", i, final_answer)
                 break
             if not action_match:

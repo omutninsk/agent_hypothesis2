@@ -6,7 +6,7 @@ import shutil
 import tempfile
 
 from langchain_core.tools import tool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from src.db.repositories.skills import SkillsRepository
 from src.sandbox.manager import SandboxManager
@@ -18,6 +18,15 @@ class RunExistingSkillInput(BaseModel):
         default="{}",
         description='JSON string to pass as stdin, e.g. \'{"url": "https://example.com"}\'',
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize(cls, values: dict) -> dict:
+        if isinstance(values, dict):
+            v = values.get("input_json")
+            if isinstance(v, dict):
+                values["input_json"] = json.dumps(v)
+        return values
 
 
 def make_run_existing_skill_tool(

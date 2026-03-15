@@ -5,7 +5,7 @@ import os
 import tempfile
 
 from langchain_core.tools import tool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from src.db.repositories.skills import SkillsRepository
 from src.sandbox.manager import SandboxManager
@@ -14,6 +14,15 @@ from src.sandbox.manager import SandboxManager
 class RunSkillInput(BaseModel):
     name: str = Field(description="Name of the skill to run")
     input_json: str = Field(default="{}", description="JSON string to pass as stdin")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize(cls, values: dict) -> dict:
+        if isinstance(values, dict):
+            v = values.get("input_json")
+            if isinstance(v, dict):
+                values["input_json"] = json.dumps(v)
+        return values
 
 
 def make_run_skill_tool(skill_repo: SkillsRepository, sandbox: SandboxManager):

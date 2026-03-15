@@ -49,4 +49,10 @@ def build_supervisor_agent(
         tools=tools,
         max_iterations=200,
         system_prompt=SUPERVISOR_SYSTEM,
+        required_tools_any={
+            "web_search",
+            "delegate_to_coder",
+            "run_existing_skill",
+            "search_knowledge",
+        },
     )

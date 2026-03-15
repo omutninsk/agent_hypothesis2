@@ -121,15 +121,20 @@ class TaskRunner:
 
             await self.memory_repo.delete_by_prefix("_ctx:", task.user_id)
 
-            msg = f"Task completed!\n\n{escape(final)}"
-            if issues:
-                warnings = "\n".join(
-                    f"  \u26a0\ufe0f {escape(i['claim'])} \u2192 {escape(i['correction'])}"
-                    for i in issues
-                    if i.get("correction")
+            contradicted = [i for i in issues if i.get("verdict") == "contradicted"]
+            if contradicted:
+                corrections = "\n".join(
+                    f"  \u274c {escape(i['claim'])} \u2192 {escape(i['correction'])}"
+                    for i in contradicted if i.get("correction")
                 )
-                if warnings:
-                    msg += f"\n\n<b>Validation warnings:</b>\n{warnings}"
+                msg = f"\u26a0\ufe0f <b>Answer may contain inaccuracies:</b>\n{corrections}\n\n---\n\n{escape(final)}"
+            else:
+                msg = f"Task completed!\n\n{escape(final)}"
+
+            uncertain = [i for i in issues if i.get("verdict") == "uncertain"]
+            if uncertain:
+                lines = "\n".join(f"  \u2753 {escape(i['claim'])}" for i in uncertain)
+                msg += f"\n\n<i>Unverified claims:</i>\n{lines}"
             if insights:
                 lines = "\n".join(
                     f"  \u2022 {escape(i['key'])}: {escape(i['content'])}"
