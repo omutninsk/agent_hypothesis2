@@ -8,8 +8,10 @@ HELP_TEXT = """<b>Agent Bot</b>
 
 <b>Commands:</b>
 /code &lt;description&gt; — start a coding task
+/explore [topic] — autonomous exploration mode
 /skills — list saved skills
 /run &lt;name&gt; [args] — run a saved skill
+/memory — show agent memories
 /status — show active tasks
 /stop — cancel active tasks
 /help — show this message"""

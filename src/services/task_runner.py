@@ -17,6 +17,7 @@ from src.db.repositories.skills import SkillsRepository
 from src.db.repositories.conversations import ConversationsRepository
 from src.db.repositories.tasks import TasksRepository
 from src.sandbox.manager import SandboxManager
+from src.services.reflection import reflect_and_save
 logger = logging.getLogger(__name__)
 
 
@@ -101,11 +102,25 @@ class TaskRunner:
             await self.task_repo.update_status(
                 task.id, TaskStatus.COMPLETED, result=final
             )
-            await self.memory_repo.delete_by_prefix("_ctx:", task.user_id)
-            await bot.send_message(
-                task.chat_id,
-                f"Task completed!\n\n{escape(final[:3500])}",
+
+            insights = await reflect_and_save(
+                settings=self.settings,
+                memory_repo=self.memory_repo,
+                user_id=task.user_id,
+                task_description=task.description,
+                task_result=final,
             )
+
+            await self.memory_repo.delete_by_prefix("_ctx:", task.user_id)
+
+            msg = f"Task completed!\n\n{escape(final[:3500])}"
+            if insights:
+                lines = "\n".join(
+                    f"  \u2022 {escape(i['key'])}: {escape(i['content'])}"
+                    for i in insights
+                )
+                msg += f"\n\n<b>Insights saved:</b>\n{lines}"
+            await bot.send_message(task.chat_id, msg)
 
         except asyncio.CancelledError:
             await self.task_repo.update_status(task.id, TaskStatus.CANCELLED)
