@@ -9,23 +9,18 @@ from src.config import Settings
 from src.db.models import ExecutionResult, Skill
 from src.db.repositories.skills import SkillsRepository
 from src.sandbox.manager import SandboxManager
-from src.sandbox.workspace import WorkspaceManager
-
-
 class SkillExecutor:
     def __init__(
         self,
         sandbox_manager: SandboxManager,
-        workspace_manager: WorkspaceManager,
         skill_repo: SkillsRepository,
         settings: Settings,
     ) -> None:
         self.sandbox = sandbox_manager
-        self.workspaces = workspace_manager
         self.skill_repo = skill_repo
         self.settings = settings
 
-    async def execute(self, skill: Skill, args: str = "") -> ExecutionResult:
+    async def execute(self, skill: Skill, input_json: str = "{}") -> ExecutionResult:
         tmpdir = tempfile.mkdtemp(prefix="skill_run_")
         try:
             # Unpack skill files
@@ -48,10 +43,9 @@ class SkillExecutor:
                     timeout=60,
                 )
 
-            # Run
-            cmd = f"python /workspace/{skill.entry_point}"
-            if args:
-                cmd += f" {args}"
+            # Run with JSON stdin
+            escaped = input_json.replace("'", "'\\''")
+            cmd = f"echo '{escaped}' | python /workspace/{skill.entry_point}"
 
             return await self.sandbox.execute(
                 command=cmd,
@@ -62,9 +56,9 @@ class SkillExecutor:
             shutil.rmtree(tmpdir, ignore_errors=True)
 
     async def execute_by_name(
-        self, name: str, args: str = ""
+        self, name: str, input_json: str = "{}"
     ) -> ExecutionResult | None:
         skill = await self.skill_repo.get_by_name(name)
         if not skill:
             return None
-        return await self.execute(skill, args)
+        return await self.execute(skill, input_json)

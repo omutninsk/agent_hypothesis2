@@ -7,7 +7,6 @@ from src.db.connection import DatabasePool
 from src.db.repositories.skills import SkillsRepository
 from src.db.repositories.tasks import TasksRepository
 from src.sandbox.manager import SandboxManager
-from src.sandbox.workspace import WorkspaceManager
 from src.services.task_runner import TaskRunner
 from src.services.skill_executor import SkillExecutor
 from src.bot.app import create_bot
@@ -30,19 +29,16 @@ async def main() -> None:
 
     # Sandbox
     sandbox = SandboxManager(settings)
-    workspaces = WorkspaceManager()
 
     # Services
     task_runner = TaskRunner(
         settings=settings,
         sandbox_manager=sandbox,
-        workspace_manager=workspaces,
         task_repo=task_repo,
         skill_repo=skill_repo,
     )
     skill_executor = SkillExecutor(
         sandbox_manager=sandbox,
-        workspace_manager=workspaces,
         skill_repo=skill_repo,
         settings=settings,
     )

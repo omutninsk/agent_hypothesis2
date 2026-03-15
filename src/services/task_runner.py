@@ -7,15 +7,13 @@ from uuid import UUID
 from aiogram import Bot
 
 from src.agent.callbacks import TelegramProgressCallback
-from src.agent.core import build_agent
+from src.agent.supervisor import build_supervisor_agent
 from src.bot.formatters import escape
 from src.config import Settings
 from src.db.models import Task, TaskStatus
 from src.db.repositories.skills import SkillsRepository
 from src.db.repositories.tasks import TasksRepository
 from src.sandbox.manager import SandboxManager
-from src.sandbox.workspace import WorkspaceManager
-
 logger = logging.getLogger(__name__)
 
 
@@ -24,13 +22,11 @@ class TaskRunner:
         self,
         settings: Settings,
         sandbox_manager: SandboxManager,
-        workspace_manager: WorkspaceManager,
         task_repo: TasksRepository,
         skill_repo: SkillsRepository,
     ) -> None:
         self.settings = settings
         self.sandbox = sandbox_manager
-        self.workspaces = workspace_manager
         self.task_repo = task_repo
         self.skill_repo = skill_repo
         self._active: dict[UUID, asyncio.Task] = {}
@@ -46,16 +42,13 @@ class TaskRunner:
         return False
 
     async def run(self, task: Task, bot: Bot) -> None:
-        workspace = self.workspaces.create(str(task.id))
-
         try:
             await self.task_repo.update_status(task.id, TaskStatus.RUNNING)
 
-            agent = build_agent(
+            agent = build_supervisor_agent(
                 settings=self.settings,
                 sandbox=self.sandbox,
                 skill_repo=self.skill_repo,
-                workspace_path=workspace,
                 user_id=task.user_id,
             )
 
@@ -95,5 +88,4 @@ class TaskRunner:
                 pass
 
         finally:
-            self.workspaces.destroy(str(task.id))
             self._active.pop(task.id, None)

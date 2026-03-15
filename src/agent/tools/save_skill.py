@@ -15,6 +15,18 @@ class SaveSkillInput(BaseModel):
     description: str = Field(description="Short description of what the skill does")
     entry_point: str = Field(default="main.py", description="Main file to execute")
     dependencies: list[str] = Field(default=[], description="pip packages needed")
+    proto_schema: str = Field(
+        default="",
+        description="Proto-style schema, e.g. 'message Input { string url = 1; } message Output { string text = 1; }'",
+    )
+    input_schema: dict = Field(
+        default={},
+        description='JSON Schema for input, e.g. {"type":"object","properties":{"url":{"type":"string"}}}',
+    )
+    output_schema: dict = Field(
+        default={},
+        description='JSON Schema for output, e.g. {"type":"object","properties":{"text":{"type":"string"}}}',
+    )
 
 
 def make_save_skill_tool(
@@ -26,8 +38,11 @@ def make_save_skill_tool(
         description: str,
         entry_point: str = "main.py",
         dependencies: list[str] | None = None,
+        proto_schema: str = "",
+        input_schema: dict | None = None,
+        output_schema: dict | None = None,
     ) -> str:
-        """Save all workspace files as a reusable skill. Users can run it with /run <name>."""
+        """Save all workspace files as a reusable skill with schema metadata. Users can run it with /run <name>."""
         dependencies = dependencies or []
 
         # Bundle all workspace files into JSON
@@ -54,6 +69,9 @@ def make_save_skill_tool(
                 code=code_json,
                 entry_point=entry_point,
                 dependencies=dependencies,
+                proto_schema=proto_schema or None,
+                input_schema=input_schema or None,
+                output_schema=output_schema or None,
             ),
             user_id=user_id,
         )

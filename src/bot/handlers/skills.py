@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 
 from aiogram import Bot, Router
@@ -22,7 +23,15 @@ async def handle_skills(
     if not skills:
         await message.reply("No skills saved yet.")
         return
-    lines = [f"<b>{escape(s.name)}</b> — {escape(s.description)}" for s in skills]
+    lines = []
+    for s in skills:
+        line = f"<b>{escape(s.name)}</b> — {escape(s.description)}"
+        if s.input_schema:
+            props = s.input_schema.get("properties", {})
+            if props:
+                params = ", ".join(props.keys())
+                line += f"\n  Input: {escape(params)}"
+        lines.append(line)
     await message.reply(truncate("\n".join(lines)))
 
 
@@ -36,11 +45,20 @@ async def handle_run(
     text = (message.text or "").removeprefix("/run").strip()
     parts = text.split(maxsplit=1)
     if not parts:
-        await message.reply("Usage: /run &lt;skill_name&gt; [args]")
+        await message.reply(
+            'Usage: /run &lt;skill_name&gt; [json_input]\n'
+            'Example: /run fetch_url {"url": "https://example.com"}'
+        )
         return
 
     skill_name = parts[0]
-    args = parts[1] if len(parts) > 1 else ""
+    input_json = parts[1] if len(parts) > 1 else "{}"
+
+    try:
+        json.loads(input_json)
+    except json.JSONDecodeError:
+        await message.reply("Error: second argument must be valid JSON.")
+        return
 
     skill = await skill_repo.get_by_name(skill_name)
     if not skill:
@@ -51,7 +69,7 @@ async def handle_run(
 
     await message.reply(f"Running <b>{escape(skill_name)}</b>...")
 
-    result = await skill_executor.execute(skill, args)
+    result = await skill_executor.execute(skill, input_json)
     output_parts = []
     if result.stdout:
         output_parts.append(result.stdout)

@@ -26,6 +26,9 @@ class SkillCreate(BaseModel):
     entry_point: str = "main.py"
     dependencies: list[str] = []
     tags: list[str] = []
+    proto_schema: Optional[str] = None
+    input_schema: Optional[dict] = None
+    output_schema: Optional[dict] = None
 
 
 class Skill(BaseModel):
@@ -40,6 +43,9 @@ class Skill(BaseModel):
     created_by: int
     created_at: datetime
     updated_at: datetime
+    proto_schema: Optional[str] = None
+    input_schema: Optional[dict] = None
+    output_schema: Optional[dict] = None
 
 
 # --- Task ---

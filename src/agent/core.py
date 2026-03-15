@@ -8,7 +8,7 @@ from typing import Any
 from langchain_core.callbacks import AsyncCallbackHandler
 from langchain_openai import ChatOpenAI
 
-from src.agent.prompts import REACT_SYSTEM, format_tool_descriptions
+from src.agent.prompts import REACT_SYSTEM, CODER_SYSTEM, format_tool_descriptions
 from src.agent.tools.write_file import make_write_file_tool
 from src.agent.tools.read_file import make_read_file_tool
 from src.agent.tools.execute_code import make_execute_code_tool
@@ -79,11 +79,13 @@ class ReactAgent:
         llm: ChatOpenAI,
         tools: list,
         max_iterations: int = 10,
+        system_prompt: str | None = None,
     ) -> None:
         self.llm = llm
         self.tools = {t.name: t for t in tools}
         self.tool_list = tools
         self.max_iterations = max_iterations
+        self.system_prompt = system_prompt
 
     async def ainvoke(
         self,
@@ -96,7 +98,8 @@ class ReactAgent:
             callbacks = config["callbacks"]
 
         tool_desc = format_tool_descriptions(self.tool_list)
-        system = REACT_SYSTEM.format(tool_descriptions=tool_desc)
+        prompt_template = self.system_prompt or REACT_SYSTEM
+        system = prompt_template.format(tool_descriptions=tool_desc)
 
         conversation = f"{system}\n\nTask: {task}\nThought:"
         final_answer = ""
@@ -181,7 +184,7 @@ class ReactAgent:
         return {"output": final_answer}
 
 
-def build_agent(
+def build_coder_agent(
     settings: Settings,
     sandbox: SandboxManager,
     skill_repo: SkillsRepository,
@@ -203,4 +206,5 @@ def build_agent(
         llm=llm,
         tools=tools,
         max_iterations=settings.agent_max_iterations,
+        system_prompt=CODER_SYSTEM,
     )

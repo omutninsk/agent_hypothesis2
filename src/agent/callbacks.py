@@ -18,6 +18,9 @@ _STATUS_MAP = {
     "save_skill": "Saving skill",
     "list_skills": "Listing skills",
     "run_skill": "Running skill",
+    "search_skills": "Searching skills",
+    "run_existing_skill": "Running existing skill",
+    "delegate_to_coder": "Delegating to coder agent",
 }
 
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import tempfile
 
 from langchain_core.tools import tool
@@ -11,20 +12,29 @@ from src.db.repositories.skills import SkillsRepository
 from src.sandbox.manager import SandboxManager
 
 
-class RunSkillInput(BaseModel):
+class RunExistingSkillInput(BaseModel):
     name: str = Field(description="Name of the skill to run")
-    input_json: str = Field(default="{}", description="JSON string to pass as stdin")
+    input_json: str = Field(
+        default="{}",
+        description='JSON string to pass as stdin, e.g. \'{"url": "https://example.com"}\'',
+    )
 
 
-def make_run_skill_tool(skill_repo: SkillsRepository, sandbox: SandboxManager):
-    @tool(args_schema=RunSkillInput)
-    async def run_skill(name: str, input_json: str = "{}") -> str:
-        """Run a previously saved skill by name, passing JSON input via stdin."""
+def make_run_existing_skill_tool(
+    skill_repo: SkillsRepository, sandbox: SandboxManager
+):
+    @tool(args_schema=RunExistingSkillInput)
+    async def run_existing_skill(name: str, input_json: str = "{}") -> str:
+        """Run a saved skill by name, passing JSON input via stdin. Returns the skill's output."""
         skill = await skill_repo.get_by_name(name)
         if not skill:
             return f"Error: skill '{name}' not found."
 
-        # Unpack skill files into temp workspace
+        try:
+            json.loads(input_json)
+        except json.JSONDecodeError:
+            return f"Error: input_json is not valid JSON: {input_json[:200]}"
+
         tmpdir = tempfile.mkdtemp(prefix="skill_")
         try:
             bundle = json.loads(skill.code)
@@ -37,7 +47,6 @@ def make_run_skill_tool(skill_repo: SkillsRepository, sandbox: SandboxManager):
                 with open(full, "w") as f:
                     f.write(content)
 
-            # Install dependencies if any
             if skill.dependencies:
                 deps = " ".join(skill.dependencies)
                 await sandbox.execute(
@@ -46,7 +55,6 @@ def make_run_skill_tool(skill_repo: SkillsRepository, sandbox: SandboxManager):
                     timeout=60,
                 )
 
-            # Run the skill via stdin pipe
             escaped = input_json.replace("'", "'\\''")
             cmd = f"echo '{escaped}' | python /workspace/{skill.entry_point}"
 
@@ -65,7 +73,6 @@ def make_run_skill_tool(skill_repo: SkillsRepository, sandbox: SandboxManager):
             return "\n".join(parts)
 
         finally:
-            import shutil
             shutil.rmtree(tmpdir, ignore_errors=True)
 
-    return run_skill
+    return run_existing_skill
