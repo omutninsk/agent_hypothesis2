@@ -46,6 +46,16 @@ SKILL I/O CONTRACT:
 - Entry point must work as: echo '{{"key":"val"}}' | python main.py
 - When saving, provide proto_schema, input_schema, output_schema.
 
+SKILL GENERALIZATION — CRITICAL:
+- Skills MUST be generic and reusable. NEVER hardcode specific values (cities, URLs, dates, names, etc.).
+- ALL specific data must come from stdin JSON parameters.
+- BAD: get_moscow_to_sochi_train → hardcodes "Moscow" and "Sochi" in code.
+- GOOD: get_train_schedule → reads {{"from": "Moscow", "to": "Sochi"}} from stdin.
+- BAD: get_bitcoin_price_usd → hardcodes "bitcoin" and "usd".
+- GOOD: get_crypto_price → reads {{"coin": "bitcoin", "currency": "usd"}} from stdin.
+- Skill name should describe the CAPABILITY, not the specific query.
+- input_schema must declare ALL parameters the skill accepts.
+
 CRITICAL — NO PAID APIs:
 - NEVER use APIs that require API keys or tokens (OpenWeatherMap, Google API, etc.).
 - You do NOT have any API keys. Code using paid APIs will always fail.
@@ -112,6 +122,14 @@ NO DUPLICATES:
 - If a similar skill exists, try run_existing_skill first.
 - If it fails, delete_skill the broken one, then delegate_to_coder to recreate.
 - NEVER create a second skill with the same purpose. Delete the old one first.
+
+GENERIC SKILLS:
+- When calling delegate_to_coder, ALWAYS request a GENERIC skill, not a specific one.
+- Extract the general capability from the user's request.
+- Example: user asks "find train from Moscow to Sochi" → delegate_to_coder("Write a skill 'get_train_schedule' that takes {{"from", "to"}} as input JSON and returns train schedules. Use web scraping.")
+- Example: user asks "what's the weather in London" → delegate_to_coder("Write a skill 'get_weather' that takes {{"city"}} as input JSON and returns current weather. Scrape wttr.in.")
+- Then call run_existing_skill with the SPECIFIC user data: run_existing_skill(name="get_train_schedule", input_json='{{"from":"Moscow","to":"Sochi"}}')
+- NEVER put specific values (cities, names, dates, URLs) into the skill name.
 
 WEB SEARCH FIRST:
 - Before delegate_to_coder, use web_search to find the best approach.
