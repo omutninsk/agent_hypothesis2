@@ -67,6 +67,22 @@ class TasksRepository:
         )
         return [Task(**dict(r)) for r in rows]
 
+    async def get_recent_completed(
+        self, user_id: int, chat_id: int, limit: int = 5
+    ) -> list[Task]:
+        rows = await self._pool.fetch(
+            """
+            SELECT * FROM tasks
+            WHERE user_id = $1
+              AND chat_id = $2
+              AND status IN ('completed', 'failed', 'cancelled')
+            ORDER BY created_at DESC
+            LIMIT $3
+            """,
+            user_id, chat_id, limit,
+        )
+        return [Task(**dict(r)) for r in reversed(rows)]
+
     async def recover_orphaned(self) -> int:
         """Mark RUNNING tasks as FAILED on startup (container restart)."""
         result = await self._pool.execute(

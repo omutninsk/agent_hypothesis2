@@ -72,7 +72,7 @@ class TaskRunner:
             return True
         return False
 
-    async def _build_context_prefix(self, user_id: int) -> str:
+    async def _build_context_prefix(self, user_id: int, chat_id: int) -> str:
         parts: list[str] = []
 
         insights = await self.memory_repo.recall_by_prefix("_insight:", user_id)
@@ -84,6 +84,25 @@ class TaskRunner:
         if ctx:
             lines = [f"- {e.key.removeprefix('_ctx:')}: {e.content}" for e in ctx]
             parts.append("PREVIOUS TASK CONTEXT:\n" + "\n".join(lines))
+
+        # Recent conversation history
+        recent_tasks = await self.task_repo.get_recent_completed(
+            user_id, chat_id, limit=5
+        )
+        if recent_tasks:
+            conv_lines: list[str] = []
+            for t in recent_tasks:
+                desc = (t.description or "")[:300]
+                result = (t.result or "(no result)")[:500]
+                status_label = t.status.value.upper()
+                ts = t.created_at.strftime("%H:%M")
+                conv_lines.append(
+                    f"[{ts} | {status_label}]\nUser: {desc}\nYou: {result}"
+                )
+            parts.append(
+                "RECENT CONVERSATION (last messages in this chat):\n"
+                + "\n---\n".join(conv_lines)
+            )
 
         return "\n\n".join(parts)
 
@@ -104,7 +123,7 @@ class TaskRunner:
                 bot=bot, chat_id=task.chat_id, task_id=task.id
             )
 
-            context_prefix = await self._build_context_prefix(task.user_id)
+            context_prefix = await self._build_context_prefix(task.user_id, task.chat_id)
             agent_input = task.description
             if context_prefix:
                 agent_input = f"{context_prefix}\n\n---\nUSER REQUEST: {task.description}"
