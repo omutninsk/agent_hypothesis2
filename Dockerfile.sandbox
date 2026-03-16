@@ -15,7 +15,8 @@ RUN pip install --no-cache-dir \
     Pillow \
     openpyxl xlrd \
     duckduckgo-search \
-    lxml
+    lxml \
+    pdfplumber
 
 RUN useradd -m -s /bin/bash sandbox
 USER sandbox

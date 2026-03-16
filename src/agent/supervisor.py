@@ -5,6 +5,7 @@ from src.agent.prompts import SUPERVISOR_SYSTEM
 from src.agent.tools.search_skills import make_search_skills_tool
 from src.agent.tools.run_existing_skill import make_run_existing_skill_tool
 from src.agent.tools.delegate_to_coder import make_delegate_to_coder_tool
+from src.agent.tools.delegate_to_file_analyzer import make_delegate_to_file_analyzer_tool
 from src.agent.tools.save_memory import make_save_memory_tool
 from src.agent.tools.recall_memory import make_recall_memory_tool
 from src.agent.tools.web_search import make_web_search_tool
@@ -42,6 +43,7 @@ def build_supervisor_agent(
         make_run_existing_skill_tool(skill_repo, sandbox),
         make_delete_skill_tool(skill_repo, settings.skills_dir),
         make_delegate_to_coder_tool(settings, sandbox, skill_repo, user_id),
+        make_delegate_to_file_analyzer_tool(settings, sandbox),
     ]
 
     return ReactAgent(
@@ -54,5 +56,7 @@ def build_supervisor_agent(
             "delegate_to_coder",
             "run_existing_skill",
             "search_knowledge",
+            "delegate_to_file_analyzer",
         },
+        settings=settings,
     )

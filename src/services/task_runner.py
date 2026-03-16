@@ -22,6 +22,25 @@ from src.services.validation import validate_response
 
 logger = logging.getLogger(__name__)
 
+_FAILURE_PHRASES = [
+    "unable to",
+    "i failed",
+    "i could not",
+    "max iterations reached",
+    "i cannot",
+    "failed to retrieve",
+    "failed to complete",
+    "repeated failures",
+    "unable to retrieve",
+    "unable to complete",
+]
+
+
+def _is_failure_answer(answer: str) -> bool:
+    """Detect if the agent's answer is essentially a failure explanation."""
+    lower = answer.lower()[:500]
+    return any(phrase in lower for phrase in _FAILURE_PHRASES)
+
 
 class TaskRunner:
     def __init__(
@@ -101,8 +120,11 @@ class TaskRunner:
 
             final = result.get("output", "No output.")
 
+            is_failure = _is_failure_answer(final)
+            task_status = TaskStatus.FAILED if is_failure else TaskStatus.COMPLETED
+
             await self.task_repo.update_status(
-                task.id, TaskStatus.COMPLETED, result=final
+                task.id, task_status, result=final
             )
 
             issues = await validate_response(
@@ -129,7 +151,10 @@ class TaskRunner:
                 )
                 msg = f"\u26a0\ufe0f <b>Answer may contain inaccuracies:</b>\n{corrections}\n\n---\n\n{escape(final)}"
             else:
-                msg = f"Task completed!\n\n{escape(final)}"
+                if is_failure:
+                    msg = escape(final)
+                else:
+                    msg = f"Task completed!\n\n{escape(final)}"
 
             uncertain = [i for i in issues if i.get("verdict") == "uncertain"]
             if uncertain:

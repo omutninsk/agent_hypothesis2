@@ -8,7 +8,14 @@ from typing import Any
 from langchain_core.callbacks import AsyncCallbackHandler
 from langchain_openai import ChatOpenAI
 
-from src.agent.prompts import REACT_SYSTEM, CODER_SYSTEM, format_tool_descriptions
+from src.agent.prompts import (
+    REACT_SYSTEM,
+    CODER_SYSTEM,
+    CODE_REVIEWER_SYSTEM,
+    FILE_ANALYZER_SYSTEM,
+    format_tool_descriptions,
+)
+from src.agent.summarizer import OBSERVATION_SUMMARIZE_THRESHOLD, summarize_observation
 from src.agent.tools.write_file import make_write_file_tool
 from src.agent.tools.read_file import make_read_file_tool
 from src.agent.tools.execute_code import make_execute_code_tool
@@ -133,6 +140,7 @@ class ReactAgent:
         required_tool: str | None = None,
         required_tools_any: set[str] | None = None,
         required_tools_any_min_length: int = 80,
+        settings: Settings | None = None,
     ) -> None:
         self.llm = llm
         self.tools = {t.name: t for t in tools}
@@ -142,6 +150,7 @@ class ReactAgent:
         self.required_tool = required_tool
         self.required_tools_any = required_tools_any
         self.required_tools_any_min_length = required_tools_any_min_length
+        self.settings = settings
 
     def _detect_loop(self, history: list[tuple[str, str]]) -> bool:
         """Check if the agent is stuck in a loop.
@@ -184,6 +193,7 @@ class ReactAgent:
         tools_called: set[str] = set()
         required_tool_nags = 0
         required_tools_any_nags = 0
+        delegation_fail_count = 0
 
         await _save("system", system)
         await _save("user", task)
@@ -309,8 +319,24 @@ class ReactAgent:
             logger.info("[iter %d] Observation (%d chars): %.200s", i, len(obs_str), obs_str)
             await _save("tool", obs_str, tool_name=tool_name)
 
-            # Truncate long observations
-            if len(obs_str) > 5000:
+            # Track delegate_to_coder failures
+            if tool_name == "delegate_to_coder" and "WARNING: No skill was saved" in obs_str:
+                delegation_fail_count += 1
+                if delegation_fail_count >= 2:
+                    obs_str += (
+                        "\n\n>>> SYSTEM: delegate_to_coder has failed "
+                        f"{delegation_fail_count} times. STOP delegating. "
+                        "Use web_search to answer the user directly with whatever data you can find."
+                    )
+
+            # Auto-summarize or truncate long observations
+            if len(obs_str) > OBSERVATION_SUMMARIZE_THRESHOLD and self.settings:
+                summary_llm = build_llm(self.settings, react_mode=False)
+                try:
+                    obs_str = await summarize_observation(summary_llm, obs_str)
+                except Exception:
+                    obs_str = obs_str[:5000] + "\n... (truncated)"
+            elif len(obs_str) > 5000:
                 obs_str = obs_str[:5000] + "\n... (truncated)"
 
             # Build next prompt turn
@@ -346,4 +372,45 @@ def build_coder_agent(
         max_iterations=settings.agent_max_iterations,
         system_prompt=CODER_SYSTEM,
         required_tool="save_skill",
+        settings=settings,
+    )
+
+
+def build_code_reviewer_agent(
+    settings: Settings,
+    sandbox: SandboxManager,
+    workspace_path: str,
+) -> ReactAgent:
+    llm = build_llm(settings)
+    tools = [
+        make_read_file_tool(workspace_path),
+        make_write_file_tool(workspace_path),
+        make_execute_code_tool(sandbox, workspace_path),
+    ]
+    return ReactAgent(
+        llm=llm,
+        tools=tools,
+        max_iterations=15,
+        system_prompt=CODE_REVIEWER_SYSTEM,
+        settings=settings,
+    )
+
+
+def build_file_analyzer_agent(
+    settings: Settings,
+    sandbox: SandboxManager,
+    workspace_path: str,
+) -> ReactAgent:
+    llm = build_llm(settings)
+    tools = [
+        make_read_file_tool(workspace_path),
+        make_write_file_tool(workspace_path),
+        make_execute_code_tool(sandbox, workspace_path),
+    ]
+    return ReactAgent(
+        llm=llm,
+        tools=tools,
+        max_iterations=20,
+        system_prompt=FILE_ANALYZER_SYSTEM,
+        settings=settings,
     )
