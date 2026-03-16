@@ -9,6 +9,7 @@ from src.agent.tools.delegate_to_file_analyzer import make_delegate_to_file_anal
 from src.agent.tools.save_memory import make_save_memory_tool
 from src.agent.tools.recall_memory import make_recall_memory_tool
 from src.agent.tools.web_search import make_web_search_tool
+from src.agent.tools.fetch_url import make_fetch_url_tool
 from src.agent.tools.get_current_datetime import make_get_current_datetime_tool
 from src.agent.tools.delete_skill import make_delete_skill_tool
 from src.agent.tools.save_knowledge import make_save_knowledge_tool
@@ -39,7 +40,8 @@ def build_supervisor_agent(
         make_update_context_tool(memory_repo, user_id),
         make_search_knowledge_tool(knowledge_repo, user_id),
         make_save_knowledge_tool(knowledge_repo, user_id),
-        make_web_search_tool(),
+        make_web_search_tool(sandbox),
+        make_fetch_url_tool(sandbox),
         make_get_current_datetime_tool(),
         make_search_skills_tool(skill_repo),
         make_run_existing_skill_tool(skill_repo, sandbox),
@@ -59,6 +61,7 @@ def build_supervisor_agent(
 
     required_tools_any = {
         "web_search",
+        "fetch_url",
         "delegate_to_coder",
         "run_existing_skill",
         "search_knowledge",

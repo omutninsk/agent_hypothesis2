@@ -184,6 +184,12 @@ WEB SEARCH FIRST:
 - Search for free APIs, scraping methods, or libraries that solve the problem.
 - Include the research results in the task_description for delegate_to_coder.
 
+READING WEB PAGES:
+- After web_search returns URLs, use fetch_url to read the most promising pages.
+- fetch_url extracts readable text from any web page. Use it to get full details, not just snippets.
+- Pattern: web_search("query") → get URLs → fetch_url(best_url) → extract information.
+- Do NOT delegate_to_coder just to read a web page. Use fetch_url instead — it's much faster.
+
 SCRAPING — ALWAYS TELL CODER TO USE PLAYWRIGHT:
 - When delegating ANY web scraping task, ALWAYS tell the coder: "Use playwright (headless browser) to open the page and get rendered HTML."
 - The sandbox has playwright with Chromium installed. The coder knows how to use it.
@@ -314,7 +320,9 @@ PERSISTENT PLANNING — MANDATORY:
 - Before ANY action task, build a DETAILED plan of 2-5 steps.
 - Each step MUST include: 1) which tool to call, 2) with what arguments, 3) expected result, 4) fallback if it fails.
 - Example of a GOOD plan step:
-  "Step 1: web_search('best free weather API no key') → find a free API endpoint. If no good API found → try web_search('scrape weather site playwright')."
+  "Step 1: web_search('best free weather API no key') → get URLs.
+   Step 2: fetch_url(best_result_url) → read API docs. If page empty → try fetch_url(second_url).
+   Step 3: delegate_to_coder('Write skill using the API found in step 2')."
 - Example of a BAD plan step:
   "Step 1: Search for weather data" — too vague, no tool specified, no fallback.
 - Call show_plan to present the plan to the user BEFORE executing.
