@@ -7,10 +7,12 @@ from uuid import UUID
 from aiogram import Bot
 
 from src.agent.callbacks import TelegramProgressCallback
+from src.agent.prompts import PERSISTENT_PLANNING_ADDON
 from src.agent.supervisor import build_supervisor_agent
+from src.agent.tools.show_plan import make_show_plan_tool
 from src.bot.formatters import escape, split_message
 from src.config import Settings
-from src.db.models import Task, TaskStatus
+from src.db.models import MemoryEntry, Task, TaskStatus
 from src.db.repositories.knowledge import KnowledgeRepository
 from src.db.repositories.memory import MemoryRepository
 from src.db.repositories.skills import SkillsRepository
@@ -74,7 +76,7 @@ class TaskRunner:
 
     async def _build_context_prefix(
         self, user_id: int, chat_id: int, task_description: str = ""
-    ) -> str:
+    ) -> tuple[str, list[MemoryEntry]]:
         parts: list[str] = []
 
         # 1. Search relevant insights by task description (FTS)
@@ -96,8 +98,10 @@ class TaskRunner:
                 merged.append(e)
                 seen_ids.add(e.id)
 
-        if merged:
-            lines = [f"- {e.key.removeprefix('_insight:')}: {e.content}" for e in merged[:15]]
+        insights = merged[:15]
+
+        if insights:
+            lines = [f"- {e.key.removeprefix('_insight:')}: {e.content}" for e in insights]
             parts.append("YOUR LEARNED INSIGHTS:\n" + "\n".join(lines))
 
         ctx = await self.memory_repo.recall_by_prefix("_ctx:", user_id)
@@ -124,11 +128,18 @@ class TaskRunner:
                 + "\n---\n".join(conv_lines)
             )
 
-        return "\n\n".join(parts)
+        return "\n\n".join(parts), insights
 
     async def run(self, task: Task, bot: Bot) -> None:
         try:
             await self.task_repo.update_status(task.id, TaskStatus.RUNNING)
+
+            extra_tools: list = []
+            system_prompt_addon = ""
+
+            if self.settings.feature_persistent_planning:
+                extra_tools.append(make_show_plan_tool(bot, task.chat_id))
+                system_prompt_addon = PERSISTENT_PLANNING_ADDON
 
             agent = build_supervisor_agent(
                 settings=self.settings,
@@ -137,13 +148,31 @@ class TaskRunner:
                 memory_repo=self.memory_repo,
                 knowledge_repo=self.knowledge_repo,
                 user_id=task.user_id,
+                extra_tools=extra_tools or None,
+                system_prompt_addon=system_prompt_addon,
             )
 
             callback = TelegramProgressCallback(
                 bot=bot, chat_id=task.chat_id, task_id=task.id
             )
 
-            context_prefix = await self._build_context_prefix(task.user_id, task.chat_id, task.description)
+            context_prefix, active_insights = await self._build_context_prefix(
+                task.user_id, task.chat_id, task.description
+            )
+
+            if active_insights and self.settings.feature_persistent_planning:
+                insight_lines = "\n".join(
+                    f"  \u2022 {escape(e.key.removeprefix('_insight:'))}"
+                    for e in active_insights
+                )
+                try:
+                    await bot.send_message(
+                        task.chat_id,
+                        f"\U0001f9e0 <b>Using {len(active_insights)} insights:</b>\n{insight_lines}",
+                    )
+                except Exception:
+                    logger.debug("Failed to send insights message")
+
             agent_input = task.description
             if context_prefix:
                 agent_input = f"{context_prefix}\n\n---\nUSER REQUEST: {task.description}"

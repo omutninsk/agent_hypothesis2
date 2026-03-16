@@ -131,6 +131,12 @@ class ReactAgent:
     LOOP_WINDOW = 6  # how many recent actions to track
     LOOP_THRESHOLD = 3  # same action repeated this many times = loop
 
+    _FAILURE_PHRASES = [
+        "unable to", "i failed", "i could not", "i cannot",
+        "failed to retrieve", "failed to complete", "repeated failures",
+        "unable to retrieve", "unable to complete",
+    ]
+
     def __init__(
         self,
         llm: ChatOpenAI,
@@ -141,6 +147,9 @@ class ReactAgent:
         required_tools_any: set[str] | None = None,
         required_tools_any_min_length: int = 80,
         settings: Settings | None = None,
+        required_plan_tool: str | None = None,
+        action_tool_names: set[str] | None = None,
+        min_plans_before_failure: int = 2,
     ) -> None:
         self.llm = llm
         self.tools = {t.name: t for t in tools}
@@ -151,6 +160,13 @@ class ReactAgent:
         self.required_tools_any = required_tools_any
         self.required_tools_any_min_length = required_tools_any_min_length
         self.settings = settings
+        self.required_plan_tool = required_plan_tool
+        self.action_tool_names = action_tool_names or set()
+        self.min_plans_before_failure = min_plans_before_failure
+
+    def _is_failure_answer(self, text: str) -> bool:
+        lower = text.lower()[:500]
+        return any(p in lower for p in self._FAILURE_PHRASES)
 
     def _detect_loop(self, history: list[tuple[str, str]]) -> bool:
         """Check if the agent is stuck in a loop.
@@ -194,6 +210,9 @@ class ReactAgent:
         required_tool_nags = 0
         required_tools_any_nags = 0
         delegation_fail_count = 0
+        plan_count = 0
+        plan_nags = 0
+        failure_plan_nags = 0
 
         await _save("system", system)
         await _save("user", task)
@@ -262,6 +281,27 @@ class ReactAgent:
                         f"Use web_search to verify your claims.\nThought:"
                     )
                     continue
+                # Plan enforcement: reject failure answers until enough replanning
+                if (
+                    self.required_plan_tool
+                    and self._is_failure_answer(candidate_answer)
+                    and plan_count < self.min_plans_before_failure
+                    and failure_plan_nags < 3
+                ):
+                    failure_plan_nags += 1
+                    logger.warning(
+                        "[iter %d] Failure answer rejected — only %d plan(s), need %d (nag %d/3)",
+                        i, plan_count, self.min_plans_before_failure, failure_plan_nags,
+                    )
+                    conversation += (
+                        f" {text}\nObservation: STOP. Your answer says you failed, but you have "
+                        f"only tried {plan_count} approach(es). You MUST try at least "
+                        f"{self.min_plans_before_failure} different approaches before giving up. "
+                        f"Analyze WHY the previous approach failed, think of a COMPLETELY "
+                        f"different method (different website, different API, different tool), "
+                        f"call {self.required_plan_tool} with a NEW plan, then execute it.\nThought:"
+                    )
+                    continue
                 final_answer = candidate_answer
                 logger.info("[iter %d] Final answer: %.200s", i, final_answer)
                 break
@@ -294,6 +334,23 @@ class ReactAgent:
             if tool_name not in self.tools:
                 observation = f"Error: unknown tool '{tool_name}'. Available: {', '.join(self.tools.keys())}"
                 logger.warning("[iter %d] Unknown tool: %s", i, tool_name)
+            elif (
+                self.required_plan_tool
+                and tool_name in self.action_tool_names
+                and self.required_plan_tool not in tools_called
+                and plan_nags < 3
+            ):
+                plan_nags += 1
+                observation = (
+                    f"BLOCKED: You must call {self.required_plan_tool} with your "
+                    f"step-by-step plan BEFORE using {tool_name}. "
+                    f"Think about what steps are needed, build a numbered plan "
+                    f"(2-5 steps), and show it to the user first."
+                )
+                logger.warning(
+                    "[iter %d] Action %s blocked — plan not shown yet (nag %d/3)",
+                    i, tool_name, plan_nags,
+                )
             else:
                 tool = self.tools[tool_name]
                 try:
@@ -316,6 +373,8 @@ class ReactAgent:
 
             obs_str = str(observation)
             tools_called.add(tool_name)
+            if tool_name == self.required_plan_tool:
+                plan_count += 1
             logger.info("[iter %d] Observation (%d chars): %.200s", i, len(obs_str), obs_str)
             await _save("tool", obs_str, tool_name=tool_name)
 

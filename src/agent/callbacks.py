@@ -29,6 +29,7 @@ _STATUS_MAP = {
     "search_knowledge": "Searching knowledge",
     "update_context": "Updating context",
     "delegate_to_file_analyzer": "Analyzing document",
+    "show_plan": "Presenting plan",
 }
 
 

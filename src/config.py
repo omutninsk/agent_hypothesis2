@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     agent_max_iterations: int = 200
     skills_dir: str = "/app/skills"
 
+    # Agent features
+    feature_persistent_planning: bool = True
+
     # Logging
     log_level: str = "INFO"
 

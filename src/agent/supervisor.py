@@ -28,6 +28,8 @@ def build_supervisor_agent(
     memory_repo: MemoryRepository,
     knowledge_repo: KnowledgeRepository,
     user_id: int,
+    extra_tools: list | None = None,
+    system_prompt_addon: str = "",
 ) -> ReactAgent:
     llm = build_llm(settings)
 
@@ -46,17 +48,49 @@ def build_supervisor_agent(
         make_delegate_to_file_analyzer_tool(settings, sandbox),
     ]
 
+    if extra_tools:
+        tools.extend(extra_tools)
+
+    system_prompt = SUPERVISOR_SYSTEM
+    if system_prompt_addon:
+        system_prompt = system_prompt.replace(
+            "\nRules:\n", f"\n{system_prompt_addon}\nRules:\n", 1
+        )
+
+    required_tools_any = {
+        "web_search",
+        "delegate_to_coder",
+        "run_existing_skill",
+        "search_knowledge",
+        "delegate_to_file_analyzer",
+    }
+    if extra_tools:
+        for t in extra_tools:
+            required_tools_any.add(t.name)
+
+    # Plan enforcement: if show_plan tool is present, block action tools until plan shown
+    plan_tool_name = None
+    action_tools: set[str] = set()
+    if extra_tools:
+        for t in extra_tools:
+            if t.name == "show_plan":
+                plan_tool_name = "show_plan"
+                action_tools = {
+                    "delegate_to_coder",
+                    "run_existing_skill",
+                    "delete_skill",
+                    "delegate_to_file_analyzer",
+                }
+                break
+
     return ReactAgent(
         llm=llm,
         tools=tools,
         max_iterations=200,
-        system_prompt=SUPERVISOR_SYSTEM,
-        required_tools_any={
-            "web_search",
-            "delegate_to_coder",
-            "run_existing_skill",
-            "search_knowledge",
-            "delegate_to_file_analyzer",
-        },
+        system_prompt=system_prompt,
+        required_tools_any=required_tools_any,
         settings=settings,
+        required_plan_tool=plan_tool_name,
+        action_tool_names=action_tools,
+        min_plans_before_failure=2,
     )

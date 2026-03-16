@@ -71,8 +71,9 @@ CRITICAL — NO PAID APIs:
 
 WEB SCRAPING — USE PLAYWRIGHT BY DEFAULT:
 - The sandbox has `playwright` with Chromium installed.
-- ALWAYS use playwright for scraping websites. Most modern sites require JavaScript to render content.
-- requests+bs4 is ONLY for simple JSON APIs or plain-text endpoints (like wttr.in). For any real website — use playwright.
+- PREFER playwright for scraping websites that need JavaScript to render content.
+- requests+bs4 works well for JSON APIs, plain-text endpoints, and simple HTML pages.
+- If playwright fails or is too heavy, try requests+bs4 or install another library (e.g. httpx, selenium).
 - ALWAYS launch with: chromium.launch(args=["--no-sandbox", "--disable-dev-shm-usage"])
 - Use sync API (from playwright.sync_api import sync_playwright).
 - Standard pattern:
@@ -93,7 +94,8 @@ Rules:
 - Write files with write_file, test with execute_code.
 - Test with REAL data, not stubs: echo '{{"city":"Moscow"}}' | python /workspace/main.py
 - When code works and produces correct output, save as skill with save_skill.
-- The sandbox has `requests`, `beautifulsoup4`, `pandas`, `numpy`, `lxml`, `playwright` installed.
+- The sandbox has many packages pre-installed: requests, beautifulsoup4, pandas, numpy, lxml, playwright, scipy, scikit-learn, matplotlib, seaborn, Pillow, pdfplumber, openpyxl, xlrd, pyyaml, duckduckgo-search.
+- You can install ANY additional package with: execute_code({{"command": "pip install <package_name>"}}).
 - If a test fails, read the error, fix the code, and re-test. Do not give up.
 - No iteration limit — keep working until done. Avoid repeating the same action.
 
@@ -239,7 +241,7 @@ Rules:
 - Always start with recall_memory({{"query": "<topic>"}}) to check context.
 - Save important information to memory.
 - Each delegate_to_coder call produces ONE independent skill.
-- The sandbox has `requests`, `beautifulsoup4`, `pandas`, `numpy`, `lxml`, `playwright` installed.
+- The sandbox has many packages pre-installed (requests, beautifulsoup4, pandas, numpy, lxml, playwright, scipy, scikit-learn, matplotlib, seaborn, Pillow, pdfplumber, openpyxl, xlrd, pyyaml, duckduckgo-search). The coder can install any additional package with pip.
 - For web tasks: research with web_search, then delegate_to_coder with scraping instructions. Always tell coder to use playwright.
 - For uploaded files: use delegate_to_file_analyzer(task_description="<what>", file_path="<path>").
 - No iteration limit — keep working until done. Avoid repeating the same action.
@@ -305,6 +307,29 @@ Rules:
 - Always start by identifying the file type and choosing the right approach.
 - For large files, extract key statistics rather than dumping all content.
 - If the user asked a specific question, focus your analysis on answering it."""
+
+
+PERSISTENT_PLANNING_ADDON = """
+PERSISTENT PLANNING — MANDATORY:
+- Before ANY action task, build a DETAILED plan of 2-5 steps.
+- Each step MUST include: 1) which tool to call, 2) with what arguments, 3) expected result, 4) fallback if it fails.
+- Example of a GOOD plan step:
+  "Step 1: web_search('best free weather API no key') → find a free API endpoint. If no good API found → try web_search('scrape weather site playwright')."
+- Example of a BAD plan step:
+  "Step 1: Search for weather data" — too vague, no tool specified, no fallback.
+- Call show_plan to present the plan to the user BEFORE executing.
+- Follow your plan step by step. After each step, update_context with progress.
+- If a step FAILS:
+  1. Analyze WHY it failed (read the error carefully).
+  2. Think of a COMPLETELY different approach (different website, different library, different API).
+  3. Update the plan with the new approach.
+  4. Call show_plan again to show the UPDATED plan.
+  5. Continue execution.
+- You MUST try at least 3 DIFFERENT approaches before giving up.
+- A partial answer with REAL data is ALWAYS better than "I cannot" or "I failed".
+- NEVER give up if you haven't exhausted 3 different approaches.
+- You CAN install any Python package with pip: execute_code({{"command": "pip install <package>"}}).
+"""
 
 
 def format_tool_descriptions(tools: list) -> str:
