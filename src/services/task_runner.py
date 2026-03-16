@@ -72,12 +72,32 @@ class TaskRunner:
             return True
         return False
 
-    async def _build_context_prefix(self, user_id: int, chat_id: int) -> str:
+    async def _build_context_prefix(
+        self, user_id: int, chat_id: int, task_description: str = ""
+    ) -> str:
         parts: list[str] = []
 
-        insights = await self.memory_repo.recall_by_prefix("_insight:", user_id)
-        if insights:
-            lines = [f"- {e.key.removeprefix('_insight:')}: {e.content}" for e in insights[:20]]
+        # 1. Search relevant insights by task description (FTS)
+        relevant: list = []
+        if task_description:
+            relevant = await self.memory_repo.search_by_prefix_fts(
+                "_insight:", task_description, user_id, limit=10
+            )
+
+        # 2. Also load 5 most recent insights (recency signal)
+        recent_insights = await self.memory_repo.recall_by_prefix("_insight:", user_id)
+        recent_insights = recent_insights[:5]
+
+        # 3. Merge and dedup (relevant first, then recent not yet included)
+        seen_ids = {e.id for e in relevant}
+        merged = list(relevant)
+        for e in recent_insights:
+            if e.id not in seen_ids:
+                merged.append(e)
+                seen_ids.add(e.id)
+
+        if merged:
+            lines = [f"- {e.key.removeprefix('_insight:')}: {e.content}" for e in merged[:15]]
             parts.append("YOUR LEARNED INSIGHTS:\n" + "\n".join(lines))
 
         ctx = await self.memory_repo.recall_by_prefix("_ctx:", user_id)
@@ -123,7 +143,7 @@ class TaskRunner:
                 bot=bot, chat_id=task.chat_id, task_id=task.id
             )
 
-            context_prefix = await self._build_context_prefix(task.user_id, task.chat_id)
+            context_prefix = await self._build_context_prefix(task.user_id, task.chat_id, task.description)
             agent_input = task.description
             if context_prefix:
                 agent_input = f"{context_prefix}\n\n---\nUSER REQUEST: {task.description}"

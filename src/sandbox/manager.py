@@ -49,6 +49,7 @@ class SandboxManager:
                 mem_limit=self.memory_limit,
                 cpu_quota=self.cpu_quota,
                 network_disabled=self.network_disabled,
+                shm_size="256m",
                 cap_drop=["ALL"],
                 security_opt=["no-new-privileges"],
                 tmpfs={"/tmp": "size=100M"},

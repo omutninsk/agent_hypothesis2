@@ -13,12 +13,14 @@ logger = logging.getLogger(__name__)
 _REFLECTION_PROMPT = """Task: {task}
 Result: {result}
 {validation_section}
-Extract 0-3 reusable insights from this task. An insight is something useful for future tasks: a working API, a scraping technique, a user preference, a gotcha to avoid.
+Extract 0-2 reusable insights from this task. An insight is something useful for future tasks: a working API, a scraping technique, a user preference, a gotcha to avoid.
 
-Respond ONLY with a JSON array. Each item: {{"key": "short_topic", "content": "what you learned"}}
+IMPORTANT: Write insights in the SAME LANGUAGE as the Task above. If the task is in Russian — write insights in Russian. If in English — in English.
+
+Respond ONLY with a JSON array. Each item: {{"key": "short_topic_in_english", "content": "what you learned (in task language)"}}
 If nothing useful, respond with: []"""
 
-_MAX_INSIGHTS = 3
+_MAX_INSIGHTS = 2
 
 
 def _parse_json_array(text: str) -> list[dict]:

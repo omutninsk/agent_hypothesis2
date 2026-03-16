@@ -54,6 +54,41 @@ class MemoryRepository:
         )
         return [MemoryEntry(**dict(r)) for r in rows]
 
+    async def search_by_prefix_fts(
+        self, prefix: str, query: str, user_id: int, limit: int = 10
+    ) -> list[MemoryEntry]:
+        """FTS search within entries matching a key prefix."""
+        rows = await self._pool.fetch(
+            """
+            SELECT id, key, content, created_by, created_at, updated_at,
+                   ts_rank(search_vector, websearch_to_tsquery('simple', $1)) AS rank
+            FROM agent_memory
+            WHERE created_by = $2
+              AND key LIKE $3
+              AND search_vector @@ websearch_to_tsquery('simple', $1)
+            ORDER BY rank DESC
+            LIMIT $4
+            """,
+            query, user_id, f"{prefix}%", limit,
+        )
+        if rows:
+            return [MemoryEntry(**{k: v for k, v in dict(r).items() if k != "rank"}) for r in rows]
+
+        # Fallback: ILIKE
+        pattern = f"%{query}%"
+        rows = await self._pool.fetch(
+            """
+            SELECT * FROM agent_memory
+            WHERE created_by = $1
+              AND key LIKE $2
+              AND (key ILIKE $3 OR content ILIKE $3)
+            ORDER BY updated_at DESC
+            LIMIT $4
+            """,
+            user_id, f"{prefix}%", pattern, limit,
+        )
+        return [MemoryEntry(**dict(r)) for r in rows]
+
     async def recall_by_prefix(self, prefix: str, user_id: int) -> list[MemoryEntry]:
         rows = await self._pool.fetch(
             "SELECT * FROM agent_memory WHERE created_by = $1 AND key LIKE $2 ORDER BY updated_at DESC",
