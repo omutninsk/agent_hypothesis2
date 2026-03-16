@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 REACT_SYSTEM = """You are a Python/Bash developer. You write, debug, and deliver working code.
 
 Available tools:
@@ -338,20 +340,3 @@ PERSISTENT PLANNING — MANDATORY:
 - NEVER give up if you haven't exhausted 3 different approaches.
 - You CAN install any Python package with pip: execute_code({{"command": "pip install <package>"}}).
 """
-
-
-def format_tool_descriptions(tools: list) -> str:
-    lines = []
-    for t in tools:
-        desc = t.description or ""
-        if hasattr(t, "args_schema") and t.args_schema:
-            schema = t.args_schema.model_json_schema()
-            props = schema.get("properties", {})
-            args_desc = ", ".join(
-                f'{k}: {v.get("description", v.get("type", ""))}'
-                for k, v in props.items()
-            )
-            lines.append(f"- {t.name}({args_desc}): {desc}")
-        else:
-            lines.append(f"- {t.name}: {desc}")
-    return "\n".join(lines)

@@ -33,6 +33,7 @@ class Settings(BaseSettings):
 
     # Agent features
     feature_persistent_planning: bool = True
+    prompt_language: str = "en"
 
     # Logging
     log_level: str = "INFO"

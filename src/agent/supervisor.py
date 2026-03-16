@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.agent.core import ReactAgent, build_llm
-from src.agent.prompts import SUPERVISOR_SYSTEM
+from src.agent.prompts import get_prompts
 from src.agent.tools.search_skills import make_search_skills_tool
 from src.agent.tools.run_existing_skill import make_run_existing_skill_tool
 from src.agent.tools.delegate_to_coder import make_delegate_to_coder_tool
@@ -53,7 +53,8 @@ def build_supervisor_agent(
     if extra_tools:
         tools.extend(extra_tools)
 
-    system_prompt = SUPERVISOR_SYSTEM
+    prompts = get_prompts(settings.prompt_language)
+    system_prompt = prompts.SUPERVISOR_SYSTEM
     if system_prompt_addon:
         system_prompt = system_prompt.replace(
             "\nRules:\n", f"\n{system_prompt_addon}\nRules:\n", 1

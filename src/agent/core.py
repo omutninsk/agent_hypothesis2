@@ -8,13 +8,7 @@ from typing import Any
 from langchain_core.callbacks import AsyncCallbackHandler
 from langchain_openai import ChatOpenAI
 
-from src.agent.prompts import (
-    REACT_SYSTEM,
-    CODER_SYSTEM,
-    CODE_REVIEWER_SYSTEM,
-    FILE_ANALYZER_SYSTEM,
-    format_tool_descriptions,
-)
+from src.agent.prompts import get_prompts, format_tool_descriptions
 from src.agent.summarizer import OBSERVATION_SUMMARIZE_THRESHOLD, summarize_observation
 from src.agent.tools.write_file import make_write_file_tool
 from src.agent.tools.read_file import make_read_file_tool
@@ -200,7 +194,8 @@ class ReactAgent:
                 ))
 
         tool_desc = format_tool_descriptions(self.tool_list)
-        prompt_template = self.system_prompt or REACT_SYSTEM
+        prompts = get_prompts(self.settings.prompt_language) if self.settings else get_prompts()
+        prompt_template = self.system_prompt or prompts.REACT_SYSTEM
         system = prompt_template.format(tool_descriptions=tool_desc)
 
         conversation = f"{system}\n\nTask: {task}\nThought:"
@@ -425,11 +420,12 @@ def build_coder_agent(
         make_run_skill_tool(skill_repo, sandbox),
     ]
 
+    prompts = get_prompts(settings.prompt_language)
     return ReactAgent(
         llm=llm,
         tools=tools,
         max_iterations=settings.agent_max_iterations,
-        system_prompt=CODER_SYSTEM,
+        system_prompt=prompts.CODER_SYSTEM,
         required_tool="save_skill",
         settings=settings,
     )
@@ -446,11 +442,12 @@ def build_code_reviewer_agent(
         make_write_file_tool(workspace_path),
         make_execute_code_tool(sandbox, workspace_path),
     ]
+    prompts = get_prompts(settings.prompt_language)
     return ReactAgent(
         llm=llm,
         tools=tools,
         max_iterations=15,
-        system_prompt=CODE_REVIEWER_SYSTEM,
+        system_prompt=prompts.CODE_REVIEWER_SYSTEM,
         settings=settings,
     )
 
@@ -466,10 +463,11 @@ def build_file_analyzer_agent(
         make_write_file_tool(workspace_path),
         make_execute_code_tool(sandbox, workspace_path),
     ]
+    prompts = get_prompts(settings.prompt_language)
     return ReactAgent(
         llm=llm,
         tools=tools,
         max_iterations=20,
-        system_prompt=FILE_ANALYZER_SYSTEM,
+        system_prompt=prompts.FILE_ANALYZER_SYSTEM,
         settings=settings,
     )

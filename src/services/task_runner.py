@@ -7,7 +7,7 @@ from uuid import UUID
 from aiogram import Bot
 
 from src.agent.callbacks import TelegramProgressCallback
-from src.agent.prompts import PERSISTENT_PLANNING_ADDON
+from src.agent.prompts import get_prompts
 from src.agent.supervisor import build_supervisor_agent
 from src.agent.tools.show_plan import make_show_plan_tool
 from src.bot.formatters import escape, split_message
@@ -139,7 +139,8 @@ class TaskRunner:
 
             if self.settings.feature_persistent_planning:
                 extra_tools.append(make_show_plan_tool(bot, task.chat_id))
-                system_prompt_addon = PERSISTENT_PLANNING_ADDON
+                prompts = get_prompts(self.settings.prompt_language)
+                system_prompt_addon = prompts.PERSISTENT_PLANNING_ADDON
 
             agent = build_supervisor_agent(
                 settings=self.settings,
