@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     feature_inject_datetime: bool = False
     feature_coder_web_research: bool = True
     feature_coder_planning: bool = True
+    feature_scheduled_tasks: bool = False
     prompt_language: str = "ru"
 
     # Planning

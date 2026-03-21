@@ -23,6 +23,7 @@ from src.services.reflection import reflect_and_save
 from src.services.validation import validate_response
 
 if TYPE_CHECKING:
+    from src.db.repositories.scheduled_tasks import ScheduledTasksRepository
     from src.transport.protocol import ChatTransport
 
 logger = logging.getLogger(__name__)
@@ -57,6 +58,7 @@ class TaskRunner:
         memory_repo: MemoryRepository,
         knowledge_repo: KnowledgeRepository,
         conversation_repo: ConversationsRepository,
+        scheduled_repo: ScheduledTasksRepository | None = None,
     ) -> None:
         self.settings = settings
         self.sandbox = sandbox_manager
@@ -65,6 +67,7 @@ class TaskRunner:
         self.memory_repo = memory_repo
         self.knowledge_repo = knowledge_repo
         self.conversation_repo = conversation_repo
+        self.scheduled_repo = scheduled_repo
         self._active: dict[UUID, asyncio.Task] = {}
 
     def register(self, task_id: UUID, asyncio_task: asyncio.Task) -> None:
@@ -212,6 +215,8 @@ class TaskRunner:
                 extra_tools=extra_tools or None,
                 system_prompt_addon=system_prompt_addon,
                 plan_state=plan_state,
+                chat_id=task.chat_id,
+                scheduled_repo=self.scheduled_repo,
             )
 
             callback = TransportProgressCallback(

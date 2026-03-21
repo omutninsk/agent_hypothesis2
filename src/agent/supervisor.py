@@ -29,6 +29,7 @@ from src.sandbox.manager import SandboxManager
 
 if TYPE_CHECKING:
     from src.agent.planner import PlanState
+    from src.db.repositories.scheduled_tasks import ScheduledTasksRepository
 
 
 def build_supervisor_agent(
@@ -42,6 +43,8 @@ def build_supervisor_agent(
     system_prompt_addon: str = "",
     system_prompt_override: str | None = None,
     plan_state: PlanState | None = None,
+    chat_id: int = 0,
+    scheduled_repo: ScheduledTasksRepository | None = None,
 ) -> ReactAgent:
     llm = build_llm(settings)
 
@@ -63,6 +66,19 @@ def build_supervisor_agent(
         make_get_findings_tool(memory_repo, user_id),
         make_export_findings_tool(memory_repo, sandbox, user_id),
     ]
+
+    if scheduled_repo is not None:
+        from src.agent.tools.schedule_task import make_schedule_task_tool
+        from src.agent.tools.list_scheduled_tasks import make_list_scheduled_tasks_tool
+        from src.agent.tools.cancel_scheduled_task import make_cancel_scheduled_task_tool
+        from src.agent.tools.confirm_scheduled_task import make_confirm_scheduled_task_tool
+
+        tools.extend([
+            make_schedule_task_tool(scheduled_repo, user_id, chat_id),
+            make_list_scheduled_tasks_tool(scheduled_repo, user_id),
+            make_cancel_scheduled_task_tool(scheduled_repo, user_id),
+            make_confirm_scheduled_task_tool(scheduled_repo, user_id),
+        ])
 
     if extra_tools:
         tools.extend(extra_tools)

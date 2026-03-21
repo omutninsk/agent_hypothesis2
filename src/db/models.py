@@ -111,6 +111,31 @@ class KnowledgeEntry(BaseModel):
     created_at: datetime
 
 
+# --- Scheduled Task ---
+
+class ScheduledTaskCreate(BaseModel):
+    user_id: int
+    chat_id: int
+    description: str
+    interval_minutes: Optional[int] = None  # None = one-shot
+    delay_minutes: int = 0  # initial delay before first run
+
+
+class ScheduledTask(BaseModel):
+    id: int
+    user_id: int
+    chat_id: int
+    description: str
+    interval_minutes: Optional[int] = None
+    next_run_at: datetime
+    last_run_at: Optional[datetime] = None
+    is_active: bool = True
+    run_count: int = 0
+    last_result: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+
 # --- Execution ---
 
 class ExecutionResult(BaseModel):

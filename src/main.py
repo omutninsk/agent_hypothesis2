@@ -41,6 +41,12 @@ async def main() -> None:
     # Sandbox
     sandbox = SandboxManager(settings)
 
+    # Scheduled tasks repository (conditional)
+    scheduled_repo = None
+    if settings.feature_scheduled_tasks:
+        from src.db.repositories.scheduled_tasks import ScheduledTasksRepository
+        scheduled_repo = ScheduledTasksRepository(db.pool)
+
     # Services
     task_runner = TaskRunner(
         settings=settings,
@@ -50,6 +56,7 @@ async def main() -> None:
         memory_repo=memory_repo,
         knowledge_repo=knowledge_repo,
         conversation_repo=conversation_repo,
+        scheduled_repo=scheduled_repo,
     )
     skill_executor = SkillExecutor(
         sandbox_manager=sandbox,
@@ -67,6 +74,19 @@ async def main() -> None:
     dp["memory_repo"] = memory_repo
     dp["knowledge_repo"] = knowledge_repo
     dp["settings"] = settings
+
+    # Scheduler
+    if settings.feature_scheduled_tasks and scheduled_repo is not None:
+        from src.services.scheduler import Scheduler
+        from src.transport.telegram import TelegramTransport
+
+        scheduler = Scheduler(
+            scheduled_repo=scheduled_repo,
+            task_repo=task_repo,
+            task_runner=task_runner,
+            transport=TelegramTransport(bot),
+        )
+        logger.info("Scheduled tasks feature enabled")
 
     # Web UI
     tasks = [dp.start_polling(bot)]
@@ -95,6 +115,9 @@ async def main() -> None:
         server = uvicorn.Server(config)
         tasks.append(server.serve())
         logger.info("Web UI will be available at http://%s:%d", settings.web_host, settings.web_port)
+
+    if settings.feature_scheduled_tasks and scheduled_repo is not None:
+        tasks.append(scheduler.run_forever())
 
     logger.info("Starting Telegram bot polling...")
     try:

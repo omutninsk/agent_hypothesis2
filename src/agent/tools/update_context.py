@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import json
 from typing import Literal
 
 from langchain_core.tools import tool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from src.db.repositories.memory import MemoryRepository
 
@@ -14,6 +15,25 @@ class UpdateContextInput(BaseModel):
     )
     key: str = Field(description="Context key, e.g. 'goal', 'step', 'weather_api'")
     content: str = Field(description="Content to save")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize(cls, values: dict) -> dict:
+        if not isinstance(values, dict):
+            return values
+        required = {"layer", "key", "content"}
+        if required.issubset(values.keys()):
+            return values
+        # Double-serialised: entire JSON shoved into one field
+        for v in values.values():
+            if isinstance(v, str) and v.strip().startswith("{"):
+                try:
+                    parsed = json.loads(v)
+                    if isinstance(parsed, dict) and required.issubset(parsed.keys()):
+                        return parsed
+                except (json.JSONDecodeError, TypeError):
+                    pass
+        return values
 
 
 def make_update_context_tool(memory_repo: MemoryRepository, user_id: int):
