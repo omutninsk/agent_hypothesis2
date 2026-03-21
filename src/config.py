@@ -49,7 +49,14 @@ class Settings(BaseSettings):
     # Agent features
     feature_persistent_planning: bool = True
     feature_inject_datetime: bool = False
+    feature_coder_web_research: bool = True
+    feature_coder_planning: bool = True
     prompt_language: str = "ru"
+
+    # Coder planning
+    coder_planning_depth: int = 1        # 1=flat (default), 2=steps+substeps
+    coder_planning_min_steps: int = 2
+    coder_planning_max_steps: int = 5
 
     # Planning
     planning_decomposition_depth: int = 2  # 1=flat, 2=steps+substeps, 3=steps+substeps+sub-substeps

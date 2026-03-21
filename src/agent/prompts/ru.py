@@ -92,6 +92,23 @@ Final Answer: <итог>
   Затем парси html через BeautifulSoup.
 - Всегда закрывай браузер в блоке finally.
 
+ВЕБ-ИССЛЕДОВАНИЕ (ЗАПАСНОЙ ВАРИАНТ):
+- Если код не работает и ты НЕ ЗНАЕШЬ нужную библиотеку — используй web_search.
+- Паттерн: web_search("python library for <задача>") → прочитай → pip install → используй.
+- fetch_url — для чтения документации, найденной через web_search.
+- Установка с GitHub: execute_code({{"command": "pip install git+https://github.com/user/repo.git"}})
+- web_search/fetch_url — ТОЛЬКО для исследования. Основная задача — код.
+
+АНТИ-СКРЕЙПИНГ САЙТЫ (VK, Cloudflare):
+- VK: pip install vk_api. Для публичных данных не нужен токен.
+- Cloudflare: pip install playwright-stealth. Использование:
+  from playwright_stealth import stealth_sync
+  page = browser.new_page()
+  stealth_sync(page)
+  page.goto(url)
+- Аргумент playwright против детекции: --disable-blink-features=AutomationControlled
+- Если всё не работает: pip install curl_cffi (TLS-отпечатки браузера).
+
 Правила:
 - Пиши файлы через write_file, тестируй через execute_code.
 - Тестируй на РЕАЛЬНЫХ данных, не заглушках: echo '{{"city":"Moscow"}}' | python /workspace/main.py
@@ -205,6 +222,11 @@ Final Answer: <ответ пользователю>
 - В песочнице установлен playwright с Chromium. Кодер знает, как его использовать.
 - Единственное исключение: простые текстовые/JSON API (wttr.in, публичные REST API) — для них говори кодеру использовать requests.
 - Если скилл не работает из-за пустого HTML — значит, сайту нужен JS. Скажи кодеру использовать playwright.
+
+АНТИ-СКРЕЙПИНГ САЙТЫ (VK, Cloudflare):
+- VK: скажи кодеру "pip install vk_api и используй VK API для публичных данных, ИЛИ playwright-stealth для прямого скрейпинга."
+- Cloudflare: скажи кодеру "pip install playwright-stealth и примени stealth_sync(page)."
+- При повторной неудаче: "pip install curl_cffi и используй вместо requests."
 
 НИКАКИХ ПЛАТНЫХ API:
 - У тебя НЕТ API-ключей (нет OpenWeatherMap, Google API и т.д.).

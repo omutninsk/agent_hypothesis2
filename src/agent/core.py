@@ -16,6 +16,8 @@ from src.agent.tools.execute_code import make_execute_code_tool
 from src.agent.tools.save_skill import make_save_skill_tool
 from src.agent.tools.list_skills import make_list_skills_tool
 from src.agent.tools.run_skill import make_run_skill_tool
+from src.agent.tools.web_search import make_web_search_tool
+from src.agent.tools.fetch_url import make_fetch_url_tool
 from src.config import Settings
 from src.db.models import ConversationMessage
 from src.db.repositories.skills import SkillsRepository
@@ -492,10 +494,19 @@ def build_coder_agent(
         make_write_file_tool(workspace_path),
         make_read_file_tool(workspace_path),
         make_execute_code_tool(sandbox, workspace_path),
+    ]
+
+    if settings.feature_coder_web_research:
+        tools.extend([
+            make_web_search_tool(sandbox),
+            make_fetch_url_tool(sandbox),
+        ])
+
+    tools.extend([
         make_save_skill_tool(skill_repo, workspace_path, user_id, settings.skills_dir),
         make_list_skills_tool(skill_repo),
         make_run_skill_tool(skill_repo, sandbox),
-    ]
+    ])
 
     prompts = get_prompts(settings.prompt_language)
     return ReactAgent(

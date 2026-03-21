@@ -92,6 +92,23 @@ WEB SCRAPING — USE PLAYWRIGHT BY DEFAULT:
   Then parse html with BeautifulSoup as usual.
 - Always close the browser in a finally block.
 
+WEB RESEARCH (FALLBACK):
+- If code fails and you DON'T KNOW the right library — use web_search.
+- Pattern: web_search("python library for <task>") → read results → pip install → use.
+- fetch_url — to read documentation found via web_search.
+- Install from GitHub: execute_code({{"command": "pip install git+https://github.com/user/repo.git"}})
+- web_search/fetch_url — ONLY for research. Your main job is writing code.
+
+ANTI-SCRAPING SITES (VK, Cloudflare):
+- VK: pip install vk_api. Public data doesn't need a token.
+- Cloudflare: pip install playwright-stealth. Usage:
+  from playwright_stealth import stealth_sync
+  page = browser.new_page()
+  stealth_sync(page)
+  page.goto(url)
+- Playwright arg for detection bypass: --disable-blink-features=AutomationControlled
+- If nothing works: pip install curl_cffi (browser TLS fingerprints).
+
 Rules:
 - Write files with write_file, test with execute_code.
 - Test with REAL data, not stubs: echo '{{"city":"Moscow"}}' | python /workspace/main.py
@@ -205,6 +222,11 @@ SCRAPING — ALWAYS TELL CODER TO USE PLAYWRIGHT:
 - The sandbox has playwright with Chromium installed. The coder knows how to use it.
 - Only exception: simple text/JSON APIs (wttr.in, public REST APIs) — for these, tell coder to use requests.
 - If a skill fails because HTML is empty or has no useful content — it means the site needs JS. Tell coder to use playwright.
+
+ANTI-SCRAPING SITES (VK, Cloudflare):
+- VK: tell coder "pip install vk_api and use VK API for public data, OR playwright-stealth for direct scraping."
+- Cloudflare: tell coder "pip install playwright-stealth and apply stealth_sync(page)."
+- On repeated failure: "pip install curl_cffi and use instead of requests."
 
 NO PAID APIs:
 - You do NOT have any API keys (no OpenWeatherMap, no Google API, etc.).
