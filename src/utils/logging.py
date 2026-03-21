@@ -17,7 +17,7 @@ class JSONFormatter(logging.Formatter):
         return json.dumps(entry, ensure_ascii=False)
 
 
-def setup_logging(level: str = "INFO") -> None:
+def setup_logging(level: str = "INFO", prompt_blocks_enabled: bool = False) -> None:
     root = logging.getLogger()
     root.setLevel(getattr(logging, level.upper(), logging.INFO))
 
@@ -28,3 +28,6 @@ def setup_logging(level: str = "INFO") -> None:
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("docker").setLevel(logging.WARNING)
     logging.getLogger("aiogram").setLevel(logging.INFO)
+
+    pb = logging.getLogger("prompt_blocks")
+    pb.setLevel(logging.DEBUG if prompt_blocks_enabled else logging.WARNING)

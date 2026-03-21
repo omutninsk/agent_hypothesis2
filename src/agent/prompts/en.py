@@ -96,7 +96,7 @@ Rules:
 - Write files with write_file, test with execute_code.
 - Test with REAL data, not stubs: echo '{{"city":"Moscow"}}' | python /workspace/main.py
 - When code works and produces correct output, save as skill with save_skill.
-- The sandbox has many packages pre-installed: requests, beautifulsoup4, pandas, numpy, lxml, playwright, scipy, scikit-learn, matplotlib, seaborn, Pillow, pdfplumber, openpyxl, xlrd, pyyaml, duckduckgo-search.
+- The sandbox has many packages pre-installed: requests, beautifulsoup4, pandas, numpy, lxml, playwright, scipy, scikit-learn, matplotlib, seaborn, Pillow, pdfplumber, openpyxl, xlrd, pyyaml, ddgs.
 - You can install ANY additional package with: execute_code({{"command": "pip install <package_name>"}}).
 - If a test fails, read the error, fix the code, and re-test. Do not give up.
 - No iteration limit — keep working until done. Avoid repeating the same action.
@@ -140,6 +140,14 @@ WORKFLOW:
 10. save_to_memory to remember important things.
 10a. update_context(layer='insight', key='<topic>', content='<what you learned>') if you learned a reusable approach.
 11. Combine results in Final Answer.
+
+CURRENT DATE AND TIME:
+- Your input may start with "CURRENT DATE AND TIME: ...". This is the EXACT current time.
+- ALWAYS use this date when searching: add the current year to web_search queries.
+- BAD: web_search("weather Moscow") — search engine may return outdated data.
+- GOOD: web_search("weather Moscow March 2026") — explicitly specifies current period.
+- When calling delegate_to_coder, pass the current date if the skill needs to work with current data.
+- NEVER assume the year — take it from CURRENT DATE AND TIME.
 
 FILE UPLOADS:
 - When the task starts with [FILE_UPLOAD: <path>], the user uploaded a document.
@@ -249,7 +257,7 @@ Rules:
 - Always start with recall_memory({{"query": "<topic>"}}) to check context.
 - Save important information to memory.
 - Each delegate_to_coder call produces ONE independent skill.
-- The sandbox has many packages pre-installed (requests, beautifulsoup4, pandas, numpy, lxml, playwright, scipy, scikit-learn, matplotlib, seaborn, Pillow, pdfplumber, openpyxl, xlrd, pyyaml, duckduckgo-search). The coder can install any additional package with pip.
+- The sandbox has many packages pre-installed (requests, beautifulsoup4, pandas, numpy, lxml, playwright, scipy, scikit-learn, matplotlib, seaborn, Pillow, pdfplumber, openpyxl, xlrd, pyyaml, ddgs). The coder can install any additional package with pip.
 - For web tasks: research with web_search, then delegate_to_coder with scraping instructions. Always tell coder to use playwright.
 - For uploaded files: use delegate_to_file_analyzer(task_description="<what>", file_path="<path>").
 - No iteration limit — keep working until done. Avoid repeating the same action.

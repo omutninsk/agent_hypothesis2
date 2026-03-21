@@ -7,6 +7,7 @@ from uuid import UUID
 from aiogram import Bot
 
 from src.agent.callbacks import TelegramProgressCallback
+from src.agent.prompt_logger import PromptBlockLogger
 from src.agent.prompts import get_prompts
 from src.agent.supervisor import build_supervisor_agent
 from src.agent.tools.show_plan import make_show_plan_tool
@@ -62,6 +63,7 @@ class TaskRunner:
         self.memory_repo = memory_repo
         self.knowledge_repo = knowledge_repo
         self.conversation_repo = conversation_repo
+        self.prompt_logger = PromptBlockLogger(settings)
         self._active: dict[UUID, asyncio.Task] = {}
 
     def register(self, task_id: UUID, asyncio_task: asyncio.Task) -> None:
@@ -84,12 +86,14 @@ class TaskRunner:
         if settings_entries:
             lines = [f"- {e.key.removeprefix('_setting:')}: {e.content}" for e in settings_entries]
             parts.append("YOUR SETTINGS:\n" + "\n".join(lines))
+            self.prompt_logger.log("settings", parts[-1])
 
         # 0b. Current date/time (feature toggle)
         if self.settings.feature_inject_datetime:
             from datetime import datetime, timezone
             now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
             parts.append(f"CURRENT DATE AND TIME: {now}")
+            self.prompt_logger.log("datetime", parts[-1])
 
         # 1. Search relevant insights by task description (FTS)
         relevant: list = []
@@ -115,11 +119,13 @@ class TaskRunner:
         if insights:
             lines = [f"- {e.key.removeprefix('_insight:')}: {e.content}" for e in insights]
             parts.append("YOUR LEARNED INSIGHTS:\n" + "\n".join(lines))
+            self.prompt_logger.log("insights", parts[-1])
 
         ctx = await self.memory_repo.recall_by_prefix("_ctx:", user_id)
         if ctx:
             lines = [f"- {e.key.removeprefix('_ctx:')}: {e.content}" for e in ctx]
             parts.append("PREVIOUS TASK CONTEXT:\n" + "\n".join(lines))
+            self.prompt_logger.log("task_context", parts[-1])
 
         # Recent conversation history
         recent_tasks = await self.task_repo.get_recent_completed(
@@ -139,6 +145,7 @@ class TaskRunner:
                 "RECENT CONVERSATION (last messages in this chat):\n"
                 + "\n---\n".join(conv_lines)
             )
+            self.prompt_logger.log("conversation", parts[-1])
 
         return "\n\n".join(parts), insights
 
@@ -190,12 +197,15 @@ class TaskRunner:
             if context_prefix:
                 agent_input = f"{context_prefix}\n\n---\nUSER REQUEST: {task.description}"
 
+            self.prompt_logger.log("user_request", agent_input)
+
             result = await agent.ainvoke(
                 {"input": agent_input},
                 config={
                     "callbacks": [callback],
                     "conversation_repo": self.conversation_repo,
                     "task_id": task.id,
+                    "prompt_logger": self.prompt_logger,
                 },
             )
 

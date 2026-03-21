@@ -30,6 +30,9 @@ _ACTION_RE = re.compile(
 )
 _FINAL_RE = re.compile(r"Final\s+Answer\s*:\s*(.+)", re.DOTALL)
 
+# Conservative estimate: 1 token ≈ 3 chars (safe for mixed Cyrillic/Latin)
+_CHARS_PER_TOKEN = 3
+
 
 def _normalize_tool_args(tool, args: dict) -> dict:
     """Fix common small-LLM mistakes: wrong field names, double-serialised JSON."""
@@ -173,6 +176,36 @@ class ReactAgent:
         counts = Counter(window)
         return any(c >= self.LOOP_THRESHOLD for c in counts.values())
 
+    def _trim_to_fit(self, conversation: str) -> str:
+        """Drop oldest turns when conversation approaches context window limit."""
+        if not self.settings:
+            return conversation
+        max_input_tokens = self.settings.llm_context_size - self.settings.llm_max_tokens
+        max_chars = max_input_tokens * _CHARS_PER_TOKEN
+        if len(conversation) <= max_chars:
+            return conversation
+
+        sep = "\nObservation:"
+        parts = conversation.split(sep)
+        if len(parts) <= 2:
+            return conversation
+
+        header = parts[0]  # system prompt + task + first Thought
+        note = " [... earlier turns trimmed to fit context window ...]\nThought: Continuing."
+
+        for keep_last in range(len(parts) - 1, 0, -1):
+            tail = sep.join(parts[-keep_last:])
+            candidate = header + sep + note + sep + tail
+            if len(candidate) <= max_chars:
+                dropped = len(parts) - 1 - keep_last
+                logger.info(
+                    "Context trimmed: dropped %d turns, keeping %d",
+                    dropped, keep_last,
+                )
+                return candidate
+
+        return header + sep + note + sep + parts[-1]
+
     async def ainvoke(
         self,
         input_data: dict[str, str],
@@ -185,6 +218,7 @@ class ReactAgent:
 
         conv_repo = config.get("conversation_repo") if config else None
         task_id = config.get("task_id") if config else None
+        prompt_logger = config.get("prompt_logger") if config else None
 
         async def _save(role: str, content: str, tool_name: str | None = None) -> None:
             if conv_repo and task_id:
@@ -194,11 +228,17 @@ class ReactAgent:
                 ))
 
         tool_desc = format_tool_descriptions(self.tool_list)
+        if prompt_logger:
+            prompt_logger.log("tool_descriptions", tool_desc)
         prompts = get_prompts(self.settings.prompt_language) if self.settings else get_prompts()
         prompt_template = self.system_prompt or prompts.REACT_SYSTEM
         system = prompt_template.format(tool_descriptions=tool_desc)
+        if prompt_logger:
+            prompt_logger.log("system", system)
 
         conversation = f"{system}\n\nTask: {task}\nThought:"
+        if prompt_logger:
+            prompt_logger.log("full_prompt", conversation)
         final_answer = ""
         action_history: list[tuple[str, str]] = []
         tools_called: set[str] = set()
@@ -213,6 +253,7 @@ class ReactAgent:
         await _save("user", task)
 
         for i in range(self.max_iterations):
+            conversation = self._trim_to_fit(conversation)
             logger.info("[iter %d] Calling LLM (prompt len=%d)", i, len(conversation))
 
             # Call LLM
@@ -225,6 +266,8 @@ class ReactAgent:
 
             text = response.content if isinstance(response.content, str) else str(response.content)
             logger.info("[iter %d] LLM response (%d chars): %.300s", i, len(text), text)
+            if prompt_logger:
+                prompt_logger.log_response(i, text)
             await _save("assistant", text)
 
             # Parse both Action and Final Answer

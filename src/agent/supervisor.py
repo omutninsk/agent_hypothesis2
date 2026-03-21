@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from src.agent.core import ReactAgent, build_llm
+from src.agent.prompt_logger import PromptBlockLogger
 from src.agent.prompts import get_prompts
 from src.agent.tools.search_skills import make_search_skills_tool
 from src.agent.tools.run_existing_skill import make_run_existing_skill_tool
@@ -59,6 +60,7 @@ def build_supervisor_agent(
         system_prompt = system_prompt.replace(
             "\nRules:\n", f"\n{system_prompt_addon}\nRules:\n", 1
         )
+        PromptBlockLogger(settings).log("planning_addon", system_prompt_addon)
 
     required_tools_any = {
         "web_search",

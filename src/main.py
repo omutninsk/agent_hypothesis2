@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 async def main() -> None:
     settings = Settings()
-    setup_logging(settings.log_level)
+    setup_logging(settings.log_level, prompt_blocks_enabled=bool(settings.log_prompt_blocks))
     logger.info("Starting agent system...")
 
     # Database

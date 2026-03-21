@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     llm_base_url: str = "https://aisupervisor.ru/v1"
     llm_api_key: SecretStr = Field(alias="LLM_API_KEY")
     llm_model: str = "qwen3_4b_instruct"
+    llm_context_size: int = 32768
     llm_temperature: float = 0.1
     llm_max_tokens: int = 4096
 
@@ -38,6 +39,17 @@ class Settings(BaseSettings):
 
     # Logging
     log_level: str = "INFO"
+    log_prompt_blocks: list[str] = []
+
+    @field_validator("log_prompt_blocks", mode="before")
+    @classmethod
+    def parse_prompt_blocks(cls, v):
+        if isinstance(v, str):
+            v = v.strip()
+            if not v:
+                return []
+            return [s.strip().lower() for s in v.split(",") if s.strip()]
+        return v
 
     @field_validator("telegram_allowed_user_ids", mode="before")
     @classmethod
