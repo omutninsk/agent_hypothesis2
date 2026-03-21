@@ -24,6 +24,9 @@ def create_web_app(
 ) -> FastAPI:
     app = FastAPI(title="Agent Hypothesis 2", version="0.1.0")
 
+    # Web user_id: use first Telegram allowed user (single-user local tool)
+    web_user_id = settings.telegram_allowed_user_ids[0] if settings.telegram_allowed_user_ids else 0
+
     # Shared state
     app.state.settings = settings
     app.state.task_runner = task_runner
@@ -31,6 +34,7 @@ def create_web_app(
     app.state.memory_repo = memory_repo
     app.state.knowledge_repo = knowledge_repo
     app.state.connection_manager = connection_manager
+    app.state.web_user_id = web_user_id
 
     # Routes
     app.include_router(ws.router)

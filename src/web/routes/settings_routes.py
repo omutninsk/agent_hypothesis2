@@ -9,8 +9,6 @@ from pydantic import BaseModel
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-_SETTINGS_USER_ID = 0
-
 # Whitelist of safe env fields (no secrets)
 _SAFE_ENV_FIELDS = {
     "llm_base_url",
@@ -49,7 +47,7 @@ class EnvSettingUpdate(BaseModel):
 @router.get("/agent")
 async def list_agent_settings(request: Request) -> dict:
     memory_repo = request.app.state.memory_repo
-    entries = await memory_repo.recall_by_prefix("_setting:", _SETTINGS_USER_ID)
+    entries = await memory_repo.recall_by_prefix("_setting:", request.app.state.web_user_id)
     return {
         "settings": [
             {"key": e.key.removeprefix("_setting:"), "value": e.content}
@@ -61,14 +59,14 @@ async def list_agent_settings(request: Request) -> dict:
 @router.put("/agent")
 async def set_agent_setting(body: AgentSettingUpdate, request: Request) -> dict:
     memory_repo = request.app.state.memory_repo
-    await memory_repo.save(f"_setting:{body.key}", body.value, _SETTINGS_USER_ID)
+    await memory_repo.save(f"_setting:{body.key}", body.value, request.app.state.web_user_id)
     return {"status": "saved", "key": body.key}
 
 
 @router.delete("/agent/{key}")
 async def delete_agent_setting(key: str, request: Request) -> dict:
     memory_repo = request.app.state.memory_repo
-    deleted = await memory_repo.delete(f"_setting:{key}", _SETTINGS_USER_ID)
+    deleted = await memory_repo.delete(f"_setting:{key}", request.app.state.web_user_id)
     return {"status": "deleted" if deleted else "not_found", "key": key}
 
 

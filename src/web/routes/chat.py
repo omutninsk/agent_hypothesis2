@@ -12,8 +12,6 @@ from src.transport.web import WebTransport
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-# Web user constants (single-user local tool)
-_WEB_USER_ID = 0
 _WEB_CHAT_ID = 0
 
 
@@ -21,19 +19,16 @@ class SendRequest(BaseModel):
     message: str
 
 
-class StopRequest(BaseModel):
-    pass
-
-
 @router.post("/send")
 async def send_message(body: SendRequest, request: Request) -> dict:
     task_runner = request.app.state.task_runner
     task_repo = request.app.state.task_repo
     cm = request.app.state.connection_manager
+    user_id = request.app.state.web_user_id
 
     task = await task_repo.create(
         TaskCreate(
-            user_id=_WEB_USER_ID,
+            user_id=user_id,
             chat_id=_WEB_CHAT_ID,
             description=body.message,
         )
@@ -53,8 +48,9 @@ async def send_message(body: SendRequest, request: Request) -> dict:
 @router.get("/history")
 async def get_history(request: Request) -> dict:
     task_repo = request.app.state.task_repo
+    user_id = request.app.state.web_user_id
     tasks = await task_repo.get_recent_completed(
-        _WEB_USER_ID, _WEB_CHAT_ID, limit=50
+        user_id, _WEB_CHAT_ID, limit=50
     )
     return {
         "tasks": [
