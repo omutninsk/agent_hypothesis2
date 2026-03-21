@@ -347,6 +347,31 @@ Rules:
 - If the user asked a specific question, focus your analysis on answering it."""
 
 
+CODER_PLANNING_ADDON = """
+PLANNING — MANDATORY:
+- Before writing ANY code, build a HIERARCHICAL plan.
+- Call show_plan with 2-5 top-level steps.
+- Then call show_plan again for each step with sub-steps (the tool will guide you).
+- Follow instructions from show_plan — it manages the decomposition process.
+- After the plan is finalized — execute the flat action list in order.
+- Each step MUST include: 1) which tool to call, 2) with what arguments, 3) expected result, 4) fallback if it fails.
+- Example of a GOOD coder plan:
+  "Step 1: web_search('python vk_api library usage') → find documentation. If not found → web_search('vk scraping python').
+   Step 2: write_file main.py with code using the found approach.
+   Step 3: execute_code to test with real data. If error → read it, fix, re-test.
+   Step 4: save_skill to save the working skill."
+- If a step FAILS:
+  1. Analyze WHY it failed (read the error carefully).
+  2. Think of a COMPLETELY different approach (different library, different website, different method).
+  3. Update the plan with the new approach.
+  4. Call show_plan again to show the UPDATED plan.
+  5. Continue execution.
+- You MUST try at least 2 DIFFERENT approaches before giving up.
+- You can use read_file, list_skills, web_search, fetch_url BEFORE the plan (for research).
+- write_file, execute_code, save_skill, run_skill are BLOCKED until the plan is finalized.
+"""
+
+
 PERSISTENT_PLANNING_ADDON = """
 PERSISTENT PLANNING — MANDATORY:
 - Before ANY action task, build a HIERARCHICAL plan.

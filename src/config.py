@@ -53,11 +53,6 @@ class Settings(BaseSettings):
     feature_coder_planning: bool = True
     prompt_language: str = "ru"
 
-    # Coder planning
-    coder_planning_depth: int = 1        # 1=flat (default), 2=steps+substeps
-    coder_planning_min_steps: int = 2
-    coder_planning_max_steps: int = 5
-
     # Planning
     planning_decomposition_depth: int = 2  # 1=flat, 2=steps+substeps, 3=steps+substeps+sub-substeps
     planning_min_steps: int = 3

@@ -55,8 +55,18 @@ class PlanState:
     def finalized(self) -> bool:
         return self.phase == "finalized"
 
+    def reset(self) -> None:
+        """Reset state for replanning after failure."""
+        self.steps = []
+        self.phase = "top_level"
+        self._current_decompose_target = None
+        self._decompose_queue = []
+
     def submit_plan(self, plan_text: str) -> str:
         """Called by the show_plan tool. Returns guidance for the LLM."""
+        if self.phase == "finalized":
+            # Re-planning after failure: reset and accept new plan
+            self.reset()
         if self.phase == "top_level":
             return self._accept_top_level(plan_text)
         elif self.phase == "decomposing":

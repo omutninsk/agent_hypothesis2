@@ -439,14 +439,15 @@ class ReactAgent:
 
             obs_str = str(observation)
             tools_called.add(tool_name)
-            if tool_name == self.required_plan_tool:
-                plan_count += 1
-            # Hierarchical planning: count finalization as a plan
-            if (
-                self.plan_state
-                and self.plan_state.finalized
-                and tool_name == "show_plan"
-            ):
+            if self.plan_state:
+                # Hierarchical: only count completed (finalized) plans
+                if self.plan_state.finalized and tool_name == "show_plan":
+                    plan_count += 1
+                # Reset nag counter when replanning (plan not yet finalized)
+                if tool_name == "show_plan" and not self.plan_state.finalized:
+                    plan_nags = 0
+            elif tool_name == self.required_plan_tool:
+                # Legacy (no PlanState): count every show_plan call
                 plan_count += 1
             logger.info("[iter %d] Observation (%d chars): %.200s", i, len(obs_str), obs_str)
             await _save("tool", obs_str, tool_name=tool_name)
@@ -487,6 +488,9 @@ def build_coder_agent(
     workspace_path: str,
     user_id: int,
     system_prompt_override: str | None = None,
+    extra_tools: list | None = None,
+    system_prompt_addon: str = "",
+    plan_state: object | None = None,  # PlanState
 ) -> ReactAgent:
     llm = build_llm(settings)
 
@@ -502,6 +506,9 @@ def build_coder_agent(
             make_fetch_url_tool(sandbox),
         ])
 
+    if extra_tools:
+        tools.extend(extra_tools)
+
     tools.extend([
         make_save_skill_tool(skill_repo, workspace_path, user_id, settings.skills_dir),
         make_list_skills_tool(skill_repo),
@@ -509,14 +516,42 @@ def build_coder_agent(
     ])
 
     prompts = get_prompts(settings.prompt_language)
-    return ReactAgent(
+    system_prompt = system_prompt_override or prompts.CODER_SYSTEM
+
+    if system_prompt_addon:
+        for marker in ["\nRules:\n", "\nПравила:\n"]:
+            if marker in system_prompt:
+                system_prompt = system_prompt.replace(
+                    marker, f"\n{system_prompt_addon}{marker}", 1
+                )
+                break
+
+    # Plan enforcement for coder
+    plan_tool_name = None
+    action_tools: set[str] = set()
+    if extra_tools:
+        for t in extra_tools:
+            if t.name == "show_plan":
+                plan_tool_name = "show_plan"
+                action_tools = {"write_file", "execute_code", "save_skill", "run_skill"}
+                break
+
+    agent = ReactAgent(
         llm=llm,
         tools=tools,
         max_iterations=settings.agent_max_iterations,
-        system_prompt=system_prompt_override or prompts.CODER_SYSTEM,
+        system_prompt=system_prompt,
         required_tool="save_skill",
         settings=settings,
+        required_plan_tool=plan_tool_name,
+        action_tool_names=action_tools,
+        min_plans_before_failure=2,
     )
+
+    if plan_state:
+        agent.plan_state = plan_state
+
+    return agent
 
 
 def build_code_reviewer_agent(

@@ -25,8 +25,8 @@ class ShowPlanInput(BaseModel):
 
 
 def make_show_plan_tool(
-    transport: ChatTransport,
-    chat_id: int,
+    transport: ChatTransport | None = None,
+    chat_id: int | None = None,
     plan_state: PlanState | None = None,
 ):
     @tool(args_schema=ShowPlanInput)
@@ -36,37 +36,40 @@ def make_show_plan_tool(
         if plan_state is not None:
             result = plan_state.submit_plan(plan)
 
-            # Show current plan state to user
-            if plan_state.finalized:
-                tree = plan_state.format_tree()
-                flat = plan_state.format_flat()
-                msg = (
-                    f"<b>Plan (hierarchical):</b>\n"
-                    f"{transport.format_text(tree)}\n\n"
-                    f"<b>Action list:</b>\n"
-                    f"{transport.format_text(flat)}"
-                )
-            else:
-                tree = plan_state.format_tree()
-                msg = (
-                    f"<b>Plan (in progress):</b>\n"
-                    f"{transport.format_text(tree)}"
-                )
+            if transport and chat_id:
+                # Show current plan state to user
+                if plan_state.finalized:
+                    tree = plan_state.format_tree()
+                    flat = plan_state.format_flat()
+                    msg = (
+                        f"<b>Plan (hierarchical):</b>\n"
+                        f"{transport.format_text(tree)}\n\n"
+                        f"<b>Action list:</b>\n"
+                        f"{transport.format_text(flat)}"
+                    )
+                else:
+                    tree = plan_state.format_tree()
+                    msg = (
+                        f"<b>Plan (in progress):</b>\n"
+                        f"{transport.format_text(tree)}"
+                    )
 
-            try:
-                await transport.send_text(chat_id, msg)
-            except Exception:
-                logger.warning("Failed to send plan to chat %s", chat_id)
+                try:
+                    await transport.send_text(chat_id, msg)
+                except Exception:
+                    logger.warning("Failed to send plan to chat %s", chat_id)
 
             return result
 
         # Fallback: no plan_state — simple display (backward compat)
-        formatted = f"<b>Plan:</b>\n{transport.format_text(plan)}"
-        try:
-            await transport.send_text(chat_id, formatted)
-        except Exception:
-            logger.warning("Failed to send plan to chat %s", chat_id)
-            return "Failed to send plan to user, but continuing execution."
-        return "Plan shown to user successfully."
+        if transport and chat_id:
+            formatted = f"<b>Plan:</b>\n{transport.format_text(plan)}"
+            try:
+                await transport.send_text(chat_id, formatted)
+            except Exception:
+                logger.warning("Failed to send plan to chat %s", chat_id)
+                return "Failed to send plan to user, but continuing execution."
+            return "Plan shown to user successfully."
+        return "Plan recorded."
 
     return show_plan

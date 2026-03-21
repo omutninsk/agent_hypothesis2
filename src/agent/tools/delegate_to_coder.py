@@ -10,6 +10,9 @@ from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 
 from src.agent.core import build_coder_agent, build_code_reviewer_agent
+from src.agent.planner import PlanState
+from src.agent.prompts import get_prompts
+from src.agent.tools.show_plan import make_show_plan_tool
 from src.config import Settings
 from src.db.repositories.skills import SkillsRepository
 from src.sandbox.manager import SandboxManager
@@ -37,12 +40,31 @@ def make_delegate_to_coder_tool(
             # Snapshot existing skill names before coder runs
             existing = {s.name for s in await skill_repo.list_all()}
 
+            extra_tools = []
+            system_prompt_addon = ""
+            plan_state = None
+
+            if settings.feature_coder_planning:
+                plan_state = PlanState(
+                    max_depth=settings.planning_decomposition_depth,
+                    min_steps=settings.planning_min_steps,
+                    max_steps=settings.planning_max_steps,
+                )
+                extra_tools.append(
+                    make_show_plan_tool(plan_state=plan_state)
+                )
+                prompts = get_prompts(settings.prompt_language)
+                system_prompt_addon = prompts.CODER_PLANNING_ADDON
+
             coder = build_coder_agent(
                 settings=settings,
                 sandbox=sandbox,
                 skill_repo=skill_repo,
                 workspace_path=tmpdir,
                 user_id=user_id,
+                extra_tools=extra_tools or None,
+                system_prompt_addon=system_prompt_addon,
+                plan_state=plan_state,
             )
             result = await coder.ainvoke({"input": task_description})
             coder_output = result.get("output", "Coder agent produced no output.")
