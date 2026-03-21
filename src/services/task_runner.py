@@ -125,9 +125,12 @@ class TaskRunner:
                 "_insight:", task_description, user_id, limit=10
             )
 
-        # 2. Also load 5 most recent insights (recency signal)
-        recent_insights = await self.memory_repo.recall_by_prefix("_insight:", user_id)
-        recent_insights = recent_insights[:5]
+        # 2. Load recent insights only if FTS didn't find enough
+        if len(relevant) < 5:
+            recent_insights = await self.memory_repo.recall_by_prefix("_insight:", user_id)
+            recent_insights = recent_insights[:3]
+        else:
+            recent_insights = []
 
         # 3. Merge and dedup (relevant first, then recent not yet included)
         seen_ids = {e.id for e in relevant}
@@ -193,6 +196,7 @@ class TaskRunner:
             system_prompt_addon = ""
             plan_state: PlanState | None = None
 
+            prompts_mod = None
             if self.settings.feature_persistent_planning:
                 plan_state = PlanState(
                     max_depth=self.settings.planning_decomposition_depth,
@@ -202,8 +206,15 @@ class TaskRunner:
                 extra_tools.append(
                     make_show_plan_tool(transport, task.chat_id, plan_state)
                 )
-                prompts = get_prompts(self.settings.prompt_language)
-                system_prompt_addon = prompts.PERSISTENT_PLANNING_ADDON
+                prompts_mod = get_prompts(self.settings.prompt_language)
+                system_prompt_addon = prompts_mod.PERSISTENT_PLANNING_ADDON
+
+            if self.scheduled_repo is not None:
+                if prompts_mod is None:
+                    prompts_mod = get_prompts(self.settings.prompt_language)
+                scheduling_text = prompts_mod.SCHEDULING_ADDON
+                system_prompt_addon += scheduling_text
+                prompt_logger.log("scheduling_addon", scheduling_text)
 
             agent = build_supervisor_agent(
                 settings=self.settings,

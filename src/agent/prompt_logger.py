@@ -13,8 +13,8 @@ _logger = logging.getLogger("prompt_blocks")
 _SEP = "=" * 60
 
 _ALL_BLOCKS = frozenset({
-    "system", "tool_descriptions", "planning_addon",
-    "settings", "datetime", "insights", "task_context",
+    "system", "tool_descriptions", "planning_addon", "scheduling_addon",
+    "settings", "datetime", "insights", "task_context", "findings",
     "conversation", "user_request", "full_prompt", "response",
 })
 

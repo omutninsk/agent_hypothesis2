@@ -401,3 +401,21 @@ DATA STORE:
 - Use export_findings to export to a file before Final Answer if you collected data.
 - ALWAYS offer to save to file if you collected more than 3 findings.
 """
+
+
+SCHEDULING_ADDON = """
+SCHEDULING PERIODIC TASKS:
+- If the information CHANGES OVER TIME (weather, prices, exchange rates, news, product availability, website monitoring) — PROPOSE a periodic update to the user.
+- Call schedule_task with a task description and interval_minutes. The task will be created as PENDING CONFIRMATION.
+- Tell the user: "I suggest scheduling a periodic task: <description> every <N> minutes. Confirm?"
+- When the user confirms — call confirm_scheduled_task(task_id=<ID>).
+- If the user declines — do nothing, the task remains inactive.
+- To view tasks — list_scheduled_tasks. To cancel — cancel_scheduled_task.
+- EXAMPLES of when to propose:
+  - User asks about exchange rate → propose "update the rate every 60 minutes"
+  - User searches for a product price → propose "check the price every 120 minutes"
+  - User asks about weather → propose "update the forecast every 180 minutes"
+  - User asks to monitor a website → propose "check every 30 minutes"
+- Do NOT propose for one-time questions ("who is the president", "how does X work").
+- delay_minutes=0 for immediate first run.
+"""

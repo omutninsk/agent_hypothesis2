@@ -1,8 +1,32 @@
 from __future__ import annotations
 
+import re
+
 import asyncpg
 
 from src.db.models import MemoryEntry
+
+
+def _build_or_query(text: str, max_terms: int = 8) -> str:
+    """Extract keywords from *text* and join with OR for tsquery.
+
+    - Splits on non-word characters
+    - Drops words shorter than 3 chars (catches most stop words cheaply)
+    - Deduplicates and takes up to *max_terms*
+    - Returns a string like ``"word1 OR word2 OR word3"``
+    """
+    words = re.findall(r"[a-zA-Zа-яА-ЯёЁ0-9]+", text)
+    seen: set[str] = set()
+    keywords: list[str] = []
+    for w in words:
+        low = w.lower()
+        if len(low) < 3 or low in seen:
+            continue
+        seen.add(low)
+        keywords.append(low)
+        if len(keywords) >= max_terms:
+            break
+    return " OR ".join(keywords) if keywords else text
 
 
 class MemoryRepository:
@@ -57,25 +81,32 @@ class MemoryRepository:
     async def search_by_prefix_fts(
         self, prefix: str, query: str, user_id: int, limit: int = 10
     ) -> list[MemoryEntry]:
-        """FTS search within entries matching a key prefix."""
+        """FTS search within entries matching a key prefix.
+
+        Uses OR-based keyword matching with Russian stemming config.
+        Falls back to ILIKE on the longest keyword if FTS returns nothing.
+        """
+        or_query = _build_or_query(query)
         rows = await self._pool.fetch(
             """
             SELECT id, key, content, created_by, created_at, updated_at,
-                   ts_rank(search_vector, websearch_to_tsquery('simple', $1)) AS rank
+                   ts_rank(search_vector, websearch_to_tsquery('russian', $1)) AS rank
             FROM agent_memory
             WHERE created_by = $2
               AND key LIKE $3
-              AND search_vector @@ websearch_to_tsquery('simple', $1)
+              AND search_vector @@ websearch_to_tsquery('russian', $1)
             ORDER BY rank DESC
             LIMIT $4
             """,
-            query, user_id, f"{prefix}%", limit,
+            or_query, user_id, f"{prefix}%", limit,
         )
         if rows:
             return [MemoryEntry(**{k: v for k, v in dict(r).items() if k != "rank"}) for r in rows]
 
-        # Fallback: ILIKE
-        pattern = f"%{query}%"
+        # Fallback: ILIKE on the longest keyword (not full query)
+        keywords = re.findall(r"[a-zA-Zа-яА-ЯёЁ0-9]+", query)
+        longest = max(keywords, key=len) if keywords else query
+        pattern = f"%{longest}%"
         rows = await self._pool.fetch(
             """
             SELECT * FROM agent_memory

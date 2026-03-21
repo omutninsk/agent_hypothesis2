@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
+
 from langchain_core.tools import tool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from src.db.repositories.knowledge import KnowledgeRepository
 
@@ -10,6 +12,14 @@ class SaveKnowledgeInput(BaseModel):
     topic: str = Field(description="Short label for the knowledge, e.g. 'weather_moscow', 'python_asyncio'")
     content: str = Field(description="The actual data or facts to save")
     source: str = Field(default="agent", description="Where the data came from, e.g. 'web_search', 'skill:weather'")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_content(cls, values: dict) -> dict:
+        c = values.get("content")
+        if isinstance(c, dict):
+            values["content"] = json.dumps(c, ensure_ascii=False)
+        return values
 
 
 def make_save_knowledge_tool(knowledge_repo: KnowledgeRepository, user_id: int):
