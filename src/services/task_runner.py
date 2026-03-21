@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from src.agent.callbacks import TransportProgressCallback
+from src.agent.planner import PlanState
 from src.agent.prompt_logger import PromptBlockLogger
 from src.agent.prompts import get_prompts
 from src.agent.supervisor import build_supervisor_agent
@@ -146,6 +147,16 @@ class TaskRunner:
             parts.append("PREVIOUS TASK CONTEXT:\n" + "\n".join(lines))
             _log("task_context", parts[-1])
 
+        # Stored findings from previous tasks
+        data_entries = await self.memory_repo.recall_by_prefix("_data:", user_id)
+        if data_entries:
+            lines = [
+                f"- {e.key.removeprefix('_data:')}: {e.content[:300]}"
+                for e in data_entries[:20]
+            ]
+            parts.append("STORED FINDINGS (from previous task):\n" + "\n".join(lines))
+            _log("findings", parts[-1])
+
         # Recent conversation history
         recent_tasks = await self.task_repo.get_recent_completed(
             user_id, chat_id, limit=5
@@ -177,9 +188,17 @@ class TaskRunner:
 
             extra_tools: list = []
             system_prompt_addon = ""
+            plan_state: PlanState | None = None
 
             if self.settings.feature_persistent_planning:
-                extra_tools.append(make_show_plan_tool(transport, task.chat_id))
+                plan_state = PlanState(
+                    max_depth=self.settings.planning_decomposition_depth,
+                    min_steps=self.settings.planning_min_steps,
+                    max_steps=self.settings.planning_max_steps,
+                )
+                extra_tools.append(
+                    make_show_plan_tool(transport, task.chat_id, plan_state)
+                )
                 prompts = get_prompts(self.settings.prompt_language)
                 system_prompt_addon = prompts.PERSISTENT_PLANNING_ADDON
 
@@ -192,6 +211,7 @@ class TaskRunner:
                 user_id=task.user_id,
                 extra_tools=extra_tools or None,
                 system_prompt_addon=system_prompt_addon,
+                plan_state=plan_state,
             )
 
             callback = TransportProgressCallback(
@@ -285,6 +305,30 @@ class TaskRunner:
                 await transport.send_text(task.chat_id, msg)
             except Exception:
                 logger.warning("Failed to send result to chat %s", task.chat_id)
+
+            # Post-task: check for stored findings and notify user
+            try:
+                data_entries = await self.memory_repo.recall_by_prefix(
+                    "_data:", task.user_id
+                )
+                if data_entries:
+                    summary_lines = [
+                        f"  \u2022 {e.key.removeprefix('_data:')}: {e.content[:100]}"
+                        for e in data_entries[:10]
+                    ]
+                    remaining = max(0, len(data_entries) - 10)
+                    findings_msg = (
+                        f"\U0001f4ca <b>Collected {len(data_entries)} findings:</b>\n"
+                        + "\n".join(summary_lines)
+                    )
+                    if remaining:
+                        findings_msg += f"\n  ... and {remaining} more"
+                    findings_msg += (
+                        "\n\n<i>Data saved. Send 'export to file' to save as JSON.</i>"
+                    )
+                    await transport.send_text(task.chat_id, findings_msg)
+            except Exception:
+                logger.debug("Failed to send findings summary")
 
         except asyncio.CancelledError:
             await self.task_repo.update_status(task.id, TaskStatus.CANCELLED)

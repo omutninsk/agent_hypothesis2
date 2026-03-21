@@ -187,10 +187,10 @@ function handleWSMessage(data) {
 }
 
 function linkify(text) {
-  // Escape HTML first, then convert URLs to clickable links
-  const escaped = escapeHtml(text);
-  return escaped.replace(
-    /https?:\/\/[^\s<>&"')\]]+/g,
+  // Text is already server-side escaped (format_text); just convert plain URLs to links.
+  // Only match URLs that are NOT already inside an href="..." attribute.
+  return text.replace(
+    /(?<!=")https?:\/\/[^\s<>&"')\]]+/g,
     url => `<a href="${url}" target="_blank" rel="noopener" style="color:#64ffda;text-decoration:underline">${url}</a>`
   );
 }

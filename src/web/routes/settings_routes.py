@@ -29,6 +29,9 @@ _SAFE_ENV_FIELDS = {
     "web_host",
     "web_port",
     "web_enabled",
+    "planning_decomposition_depth",
+    "planning_min_steps",
+    "planning_max_steps",
 }
 
 

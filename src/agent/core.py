@@ -160,6 +160,8 @@ class ReactAgent:
         self.required_plan_tool = required_plan_tool
         self.action_tool_names = action_tool_names or set()
         self.min_plans_before_failure = min_plans_before_failure
+        # Hierarchical planning state (set externally by supervisor/task_runner)
+        self.plan_state = None  # PlanState | None
 
     def _is_failure_answer(self, text: str) -> bool:
         lower = text.lower()[:500]
@@ -373,11 +375,35 @@ class ReactAgent:
                 observation = f"Error: unknown tool '{tool_name}'. Available: {', '.join(self.tools.keys())}"
                 logger.warning("[iter %d] Unknown tool: %s", i, tool_name)
             elif (
-                self.required_plan_tool
+                self.plan_state
+                and not self.plan_state.finalized
+                and tool_name in self.action_tool_names
+                and plan_nags < 3
+            ):
+                plan_nags += 1
+                phase = self.plan_state.phase
+                if phase == "top_level":
+                    observation = (
+                        "BLOCKED: Call show_plan with your 3-5 step plan first."
+                    )
+                else:
+                    target = self.plan_state._current_decompose_target
+                    observation = (
+                        f"BLOCKED: Plan not finalized. Decompose step {target} "
+                        f"by calling show_plan with sub-steps."
+                    )
+                logger.warning(
+                    "[iter %d] Action %s blocked — plan not finalized, phase=%s (nag %d/3)",
+                    i, tool_name, phase, plan_nags,
+                )
+            elif (
+                self.plan_state is None
+                and self.required_plan_tool
                 and tool_name in self.action_tool_names
                 and self.required_plan_tool not in tools_called
                 and plan_nags < 3
             ):
+                # Legacy fallback: no PlanState, use old tools_called check
                 plan_nags += 1
                 observation = (
                     f"BLOCKED: You must call {self.required_plan_tool} with your "
@@ -412,6 +438,13 @@ class ReactAgent:
             obs_str = str(observation)
             tools_called.add(tool_name)
             if tool_name == self.required_plan_tool:
+                plan_count += 1
+            # Hierarchical planning: count finalization as a plan
+            if (
+                self.plan_state
+                and self.plan_state.finalized
+                and tool_name == "show_plan"
+            ):
                 plan_count += 1
             logger.info("[iter %d] Observation (%d chars): %.200s", i, len(obs_str), obs_str)
             await _save("tool", obs_str, tool_name=tool_name)

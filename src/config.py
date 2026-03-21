@@ -51,6 +51,11 @@ class Settings(BaseSettings):
     feature_inject_datetime: bool = False
     prompt_language: str = "ru"
 
+    # Planning
+    planning_decomposition_depth: int = 2  # 1=flat, 2=steps+substeps, 3=steps+substeps+sub-substeps
+    planning_min_steps: int = 3
+    planning_max_steps: int = 5
+
     # Logging
     log_level: str = "INFO"
     # Stored as str to avoid pydantic-settings v3 JSON-parsing list fields

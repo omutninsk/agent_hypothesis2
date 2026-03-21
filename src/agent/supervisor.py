@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from src.agent.core import ReactAgent, build_llm
 from src.agent.prompt_logger import PromptBlockLogger
 from src.agent.prompts import get_prompts
@@ -16,11 +18,17 @@ from src.agent.tools.delete_skill import make_delete_skill_tool
 from src.agent.tools.save_knowledge import make_save_knowledge_tool
 from src.agent.tools.search_knowledge import make_search_knowledge_tool
 from src.agent.tools.update_context import make_update_context_tool
+from src.agent.tools.store_finding import make_store_finding_tool
+from src.agent.tools.get_findings import make_get_findings_tool
+from src.agent.tools.export_findings import make_export_findings_tool
 from src.config import Settings
 from src.db.repositories.knowledge import KnowledgeRepository
 from src.db.repositories.memory import MemoryRepository
 from src.db.repositories.skills import SkillsRepository
 from src.sandbox.manager import SandboxManager
+
+if TYPE_CHECKING:
+    from src.agent.planner import PlanState
 
 
 def build_supervisor_agent(
@@ -33,6 +41,7 @@ def build_supervisor_agent(
     extra_tools: list | None = None,
     system_prompt_addon: str = "",
     system_prompt_override: str | None = None,
+    plan_state: PlanState | None = None,
 ) -> ReactAgent:
     llm = build_llm(settings)
 
@@ -50,6 +59,9 @@ def build_supervisor_agent(
         make_delete_skill_tool(skill_repo, settings.skills_dir),
         make_delegate_to_coder_tool(settings, sandbox, skill_repo, user_id),
         make_delegate_to_file_analyzer_tool(settings, sandbox),
+        make_store_finding_tool(memory_repo, user_id),
+        make_get_findings_tool(memory_repo, user_id),
+        make_export_findings_tool(memory_repo, sandbox, user_id),
     ]
 
     if extra_tools:
@@ -75,7 +87,7 @@ def build_supervisor_agent(
         for t in extra_tools:
             required_tools_any.add(t.name)
 
-    # Plan enforcement: if show_plan tool is present, block action tools until plan shown
+    # Plan enforcement: if show_plan tool is present, block action tools until plan finalized
     plan_tool_name = None
     action_tools: set[str] = set()
     if extra_tools:
@@ -87,10 +99,11 @@ def build_supervisor_agent(
                     "run_existing_skill",
                     "delete_skill",
                     "delegate_to_file_analyzer",
+                    "export_findings",
                 }
                 break
 
-    return ReactAgent(
+    agent = ReactAgent(
         llm=llm,
         tools=tools,
         max_iterations=200,
@@ -101,3 +114,8 @@ def build_supervisor_agent(
         action_tool_names=action_tools,
         min_plans_before_failure=2,
     )
+
+    if plan_state:
+        agent.plan_state = plan_state
+
+    return agent

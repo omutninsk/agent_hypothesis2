@@ -327,16 +327,16 @@ Rules:
 
 PERSISTENT_PLANNING_ADDON = """
 PERSISTENT PLANNING — MANDATORY:
-- Before ANY action task, build a DETAILED plan of 2-5 steps.
+- Before ANY action task, build a HIERARCHICAL plan.
+- Call show_plan with 3-5 top-level steps.
+- Then call show_plan again for each step with sub-steps (the tool will guide you).
+- Follow instructions from show_plan — it manages the decomposition process.
+- After the plan is finalized — execute the flat action list in order.
 - Each step MUST include: 1) which tool to call, 2) with what arguments, 3) expected result, 4) fallback if it fails.
 - Example of a GOOD plan step:
   "Step 1: web_search('best free weather API no key') → get URLs.
    Step 2: fetch_url(best_result_url) → read API docs. If page empty → try fetch_url(second_url).
    Step 3: delegate_to_coder('Write skill using the API found in step 2')."
-- Example of a BAD plan step:
-  "Step 1: Search for weather data" — too vague, no tool specified, no fallback.
-- Call show_plan to present the plan to the user BEFORE executing.
-- Follow your plan step by step. After each step, update_context with progress.
 - If a step FAILS:
   1. Analyze WHY it failed (read the error carefully).
   2. Think of a COMPLETELY different approach (different website, different library, different API).
@@ -347,4 +347,10 @@ PERSISTENT PLANNING — MANDATORY:
 - A partial answer with REAL data is ALWAYS better than "I cannot" or "I failed".
 - NEVER give up if you haven't exhausted 3 different approaches.
 - You CAN install any Python package with pip: execute_code({{"command": "pip install <package>"}}).
+
+DATA STORE:
+- Use store_finding to save discovered data (news, prices, facts).
+- Use get_findings to review collected data.
+- Use export_findings to export to a file before Final Answer if you collected data.
+- ALWAYS offer to save to file if you collected more than 3 findings.
 """
