@@ -33,7 +33,8 @@ class Settings(BaseSettings):
 
     # Agent features
     feature_persistent_planning: bool = True
-    prompt_language: str = "en"
+    feature_inject_datetime: bool = False
+    prompt_language: str = "ru"
 
     # Logging
     log_level: str = "INFO"

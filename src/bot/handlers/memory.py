@@ -39,7 +39,10 @@ async def handle_memory(
 
     ctx_entries = [e for e in entries if e.key.startswith("_ctx:")]
     insight_entries = [e for e in entries if e.key.startswith("_insight:")]
-    user_entries = [e for e in entries if not e.key.startswith("_ctx:") and not e.key.startswith("_insight:")]
+    user_entries = [
+        e for e in entries
+        if not e.key.startswith(("_ctx:", "_insight:", "_setting:"))
+    ]
 
     sections = [
         _format_entries(ctx_entries, "Active Task Context"),

@@ -12,6 +12,7 @@ HELP_TEXT = """<b>Agent Bot</b>
 /skills — list saved skills
 /run &lt;name&gt; [args] — run a saved skill
 /memory — show agent memories
+/settings — manage agent deep settings
 /status — show active tasks
 /stop — cancel active tasks
 /help — show this message"""

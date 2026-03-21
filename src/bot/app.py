@@ -4,7 +4,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 
-from src.bot.handlers import chat, code, document, explore, memory, skills, start, status
+from src.bot.handlers import chat, code, document, explore, memory, agent_settings, skills, start, status
 from src.bot.middlewares import AuthMiddleware
 from src.config import Settings
 
@@ -25,6 +25,7 @@ def create_bot(settings: Settings) -> tuple[Bot, Dispatcher]:
     dp.include_router(skills.router)
     dp.include_router(status.router)
     dp.include_router(memory.router)
+    dp.include_router(agent_settings.router)
     dp.include_router(explore.router)
     dp.include_router(document.router)  # Before chat — catches document uploads
     dp.include_router(chat.router)  # Must be last — catches all text messages

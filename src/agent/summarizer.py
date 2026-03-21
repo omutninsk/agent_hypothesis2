@@ -45,10 +45,14 @@ def _split_into_chunks(text: str, chunk_size: int = CHUNK_SIZE, overlap: int = O
     return chunks if chunks else [text]
 
 
+_MAX_REDUCE_DEPTH = 3
+
+
 async def summarize_text(
     llm: ChatOpenAI,
     text: str,
     max_output_chars: int = 1500,
+    _depth: int = 0,
 ) -> str:
     """Summarize text using map-reduce. Short text gets a single LLM call."""
     if len(text) <= CHUNK_SIZE:
@@ -73,8 +77,12 @@ async def summarize_text(
         content = resp.content if isinstance(resp.content, str) else str(resp.content)
         return content[:max_output_chars]
 
+    if _depth >= _MAX_REDUCE_DEPTH:
+        logger.warning("summarize_text: max reduce depth reached, truncating")
+        return combined[:max_output_chars]
+
     # Recursive reduce if still too long
-    return await summarize_text(llm, combined, max_output_chars)
+    return await summarize_text(llm, combined, max_output_chars, _depth + 1)
 
 
 async def summarize_observation(llm: ChatOpenAI, observation: str) -> str:

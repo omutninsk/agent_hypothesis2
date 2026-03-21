@@ -41,7 +41,7 @@ def _format_results(results: list[dict]) -> str:
 
 
 async def _search_ddg(query: str, max_results: int) -> list[dict]:
-    from duckduckgo_search import DDGS
+    from ddgs import DDGS
 
     try:
         raw = DDGS().text(query, max_results=max_results)

@@ -16,7 +16,7 @@ RUN pip install --no-cache-dir \
     scipy scikit-learn \
     Pillow \
     openpyxl xlrd \
-    duckduckgo-search \
+    ddgs \
     lxml \
     pdfplumber \
     playwright

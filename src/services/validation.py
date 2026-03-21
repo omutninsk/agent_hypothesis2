@@ -48,7 +48,7 @@ def _parse_json_array(text: str) -> list[dict]:
 
 def _search_ddg(query: str, max_results: int = 3) -> str:
     """Run a DuckDuckGo search (sync, same approach as web_search tool)."""
-    from duckduckgo_search import DDGS
+    from ddgs import DDGS
 
     results = DDGS().text(query, max_results=max_results)
     lines = []

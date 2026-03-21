@@ -79,6 +79,18 @@ class TaskRunner:
     ) -> tuple[str, list[MemoryEntry]]:
         parts: list[str] = []
 
+        # 0a. User deep settings
+        settings_entries = await self.memory_repo.recall_by_prefix("_setting:", user_id)
+        if settings_entries:
+            lines = [f"- {e.key.removeprefix('_setting:')}: {e.content}" for e in settings_entries]
+            parts.append("YOUR SETTINGS:\n" + "\n".join(lines))
+
+        # 0b. Current date/time (feature toggle)
+        if self.settings.feature_inject_datetime:
+            from datetime import datetime, timezone
+            now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+            parts.append(f"CURRENT DATE AND TIME: {now}")
+
         # 1. Search relevant insights by task description (FTS)
         relevant: list = []
         if task_description:
