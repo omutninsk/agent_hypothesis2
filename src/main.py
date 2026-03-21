@@ -68,9 +68,37 @@ async def main() -> None:
     dp["knowledge_repo"] = knowledge_repo
     dp["settings"] = settings
 
+    # Web UI
+    tasks = [dp.start_polling(bot)]
+
+    if settings.web_enabled:
+        import uvicorn
+
+        from src.transport.manager import ConnectionManager
+        from src.web.app import create_web_app
+
+        cm = ConnectionManager()
+        web_app = create_web_app(
+            settings=settings,
+            task_runner=task_runner,
+            task_repo=task_repo,
+            memory_repo=memory_repo,
+            knowledge_repo=knowledge_repo,
+            connection_manager=cm,
+        )
+        config = uvicorn.Config(
+            web_app,
+            host=settings.web_host,
+            port=settings.web_port,
+            log_level=settings.log_level.lower(),
+        )
+        server = uvicorn.Server(config)
+        tasks.append(server.serve())
+        logger.info("Web UI will be available at http://%s:%d", settings.web_host, settings.web_port)
+
     logger.info("Starting Telegram bot polling...")
     try:
-        await dp.start_polling(bot)
+        await asyncio.gather(*tasks)
     finally:
         await db.disconnect()
         logger.info("Shutdown complete")

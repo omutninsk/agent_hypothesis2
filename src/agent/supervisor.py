@@ -32,6 +32,7 @@ def build_supervisor_agent(
     user_id: int,
     extra_tools: list | None = None,
     system_prompt_addon: str = "",
+    system_prompt_override: str | None = None,
 ) -> ReactAgent:
     llm = build_llm(settings)
 
@@ -55,7 +56,7 @@ def build_supervisor_agent(
         tools.extend(extra_tools)
 
     prompts = get_prompts(settings.prompt_language)
-    system_prompt = prompts.SUPERVISOR_SYSTEM
+    system_prompt = system_prompt_override or prompts.SUPERVISOR_SYSTEM
     if system_prompt_addon:
         system_prompt = system_prompt.replace(
             "\nRules:\n", f"\n{system_prompt_addon}\nRules:\n", 1

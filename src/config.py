@@ -1,8 +1,17 @@
 from __future__ import annotations
 
 import json
+from functools import cached_property
+
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings
+
+
+def _parse_prompt_blocks(raw: str) -> list[str]:
+    raw = raw.strip()
+    if not raw:
+        return []
+    return [s.strip().lower() for s in raw.split(",") if s.strip()]
 
 
 class Settings(BaseSettings):
@@ -32,6 +41,11 @@ class Settings(BaseSettings):
     agent_max_iterations: int = 200
     skills_dir: str = "/app/skills"
 
+    # Web UI
+    web_host: str = "0.0.0.0"
+    web_port: int = 8080
+    web_enabled: bool = True
+
     # Agent features
     feature_persistent_planning: bool = True
     feature_inject_datetime: bool = False
@@ -39,17 +53,16 @@ class Settings(BaseSettings):
 
     # Logging
     log_level: str = "INFO"
-    log_prompt_blocks: list[str] = []
+    # Stored as str to avoid pydantic-settings v3 JSON-parsing list fields
+    log_prompt_blocks_raw: str = Field("", alias="LOG_PROMPT_BLOCKS")
 
-    @field_validator("log_prompt_blocks", mode="before")
-    @classmethod
-    def parse_prompt_blocks(cls, v):
-        if isinstance(v, str):
-            v = v.strip()
-            if not v:
-                return []
-            return [s.strip().lower() for s in v.split(",") if s.strip()]
-        return v
+    @property
+    def log_prompt_blocks(self) -> list[str]:
+        return _parse_prompt_blocks(self.log_prompt_blocks_raw)
+
+    @log_prompt_blocks.setter
+    def log_prompt_blocks(self, value: list[str]) -> None:
+        object.__setattr__(self, "log_prompt_blocks_raw", ",".join(value))
 
     @field_validator("telegram_allowed_user_ids", mode="before")
     @classmethod

@@ -10,6 +10,7 @@ from aiogram.types import Message
 from src.db.models import TaskCreate
 from src.db.repositories.tasks import TasksRepository
 from src.services.task_runner import TaskRunner
+from src.transport.telegram import TelegramTransport
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -34,8 +35,9 @@ async def start_task(
 
     await message.reply(f"Task started. ID: <code>{task.id}</code>")
 
+    transport = TelegramTransport(bot)
     bg = asyncio.create_task(
-        task_runner.run(task=task, bot=bot),
+        task_runner.run(task=task, transport=transport),
         name=f"task-{task.id}",
     )
     task_runner.register(task.id, bg)

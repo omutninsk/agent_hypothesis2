@@ -451,6 +451,7 @@ def build_coder_agent(
     skill_repo: SkillsRepository,
     workspace_path: str,
     user_id: int,
+    system_prompt_override: str | None = None,
 ) -> ReactAgent:
     llm = build_llm(settings)
 
@@ -468,7 +469,7 @@ def build_coder_agent(
         llm=llm,
         tools=tools,
         max_iterations=settings.agent_max_iterations,
-        system_prompt=prompts.CODER_SYSTEM,
+        system_prompt=system_prompt_override or prompts.CODER_SYSTEM,
         required_tool="save_skill",
         settings=settings,
     )
@@ -478,6 +479,7 @@ def build_code_reviewer_agent(
     settings: Settings,
     sandbox: SandboxManager,
     workspace_path: str,
+    system_prompt_override: str | None = None,
 ) -> ReactAgent:
     llm = build_llm(settings)
     tools = [
@@ -490,7 +492,7 @@ def build_code_reviewer_agent(
         llm=llm,
         tools=tools,
         max_iterations=15,
-        system_prompt=prompts.CODE_REVIEWER_SYSTEM,
+        system_prompt=system_prompt_override or prompts.CODE_REVIEWER_SYSTEM,
         settings=settings,
     )
 
@@ -499,6 +501,7 @@ def build_file_analyzer_agent(
     settings: Settings,
     sandbox: SandboxManager,
     workspace_path: str,
+    system_prompt_override: str | None = None,
 ) -> ReactAgent:
     llm = build_llm(settings)
     tools = [
@@ -511,6 +514,6 @@ def build_file_analyzer_agent(
         llm=llm,
         tools=tools,
         max_iterations=20,
-        system_prompt=prompts.FILE_ANALYZER_SYSTEM,
+        system_prompt=system_prompt_override or prompts.FILE_ANALYZER_SYSTEM,
         settings=settings,
     )
